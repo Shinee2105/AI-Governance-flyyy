@@ -1,0 +1,21 @@
+# ---------------------------------------------------------------------------
+# Flyyy.ai — SaaS AI Discovery & Monitoring Platform (backend)
+# ---------------------------------------------------------------------------
+# Core
+fastapi==0.139.2
+uvicorn[standard]==0.40.0
+pydantic==2.13.4
+pydantic-settings==2.10.1
+python-dotenv==1.1.1
+# Database
+sqlalchemy==2.0.51
+# Auth
+python-jose[cryptography]==3.5.0
+passlib==1.7.4
+# HTTP client for SaaS connectors
+httpx==0.28.1
+# Migrations (production)
+alembic==1.16.5
+
+# --- PostgreSQL driver (uncomment for production PostgreSQL) ---
+# psycopg[binary]==3.2.9

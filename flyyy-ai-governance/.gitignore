@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.db
+.env
+
+# Node
+node_modules/
+dist/
+build/
+*.local
+
+# Misc
+.DS_Store
+flyyy.db

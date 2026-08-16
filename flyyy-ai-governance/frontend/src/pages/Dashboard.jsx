@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api.js";
-import { Loading, ErrorBox, statusBadge } from "../components/ui.jsx";
+import { Loading, ErrorBox, statusBadge, DemoBadge } from "../components/ui.jsx";
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
@@ -19,7 +19,7 @@ export default function Dashboard() {
 
   const cards = [
     { label: "AI Assets Discovered", value: stats.total_assets, to: "/assets" },
-    { label: "Enabled", value: stats.enabled_assets },
+    { label: "Enabled / Licensed", value: stats.enabled_assets },
     { label: "User/Group Accesses", value: stats.total_accesses },
     { label: "Unique Users Exposed", value: stats.unique_users_exposed },
     { label: "AI Interactions", value: stats.total_interactions, to: "/interactions" },
@@ -33,6 +33,17 @@ export default function Dashboard() {
         Centralised view of AI capabilities embedded in your SaaS estate, who can
         use them, and the interactions observed.
       </p>
+
+      {stats.simulated_evidence && (
+        <div className="sim-banner">
+          <DemoBadge label="DEMONSTRATION DATA" />
+          <span>
+            The current inventory was produced by the <strong>demo connector</strong>.
+            It is realistic but is <strong>not</strong> evidence from a real SaaS
+            tenant. Configure a Microsoft 365 connection to discover real data.
+          </span>
+        </div>
+      )}
 
       <div className="card-grid">
         {cards.map((c) => (

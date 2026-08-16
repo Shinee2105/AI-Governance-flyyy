@@ -1,4 +1,4 @@
-"""AI interactions (monitoring) API."""
+﻿"""AI interactions (monitoring) API."""
 
 from __future__ import annotations
 
@@ -11,6 +11,12 @@ from app.models import AIInteraction
 from app.schemas import AIInteractionOut
 
 router = APIRouter(prefix="/interactions", tags=["interactions"])
+
+
+def _serialize(i: AIInteraction) -> dict:
+    data = AIInteractionOut.model_validate(i).model_dump()
+    data["simulated"] = "simulated" in (i.source or "").lower()
+    return data
 
 
 @router.get("", response_model=list[AIInteractionOut])
@@ -38,7 +44,7 @@ def list_interactions(
     interactions = db.execute(
         stmt.order_by(AIInteraction.timestamp.desc()).limit(limit).offset(offset)
     ).scalars().all()
-    return [AIInteractionOut.model_validate(i).model_dump() for i in interactions]
+    return [_serialize(i) for i in interactions]
 
 
 @router.get("/filters", response_model=dict)

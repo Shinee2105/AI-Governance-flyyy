@@ -1,4 +1,4 @@
-"""Dashboard statistics API."""
+﻿"""Dashboard statistics API."""
 
 from __future__ import annotations
 
@@ -42,6 +42,10 @@ def dashboard(db: Session = Depends(get_db)):
         or 0
     )
     connections = db.execute(select(func.count(Connection.id))).scalar() or 0
+
+    # Whether any inventory is demonstration/simulated data.
+    assets = db.execute(select(AIAsset)).scalars().all()
+    simulated_evidence = any((a.evidence or {}).get("simulated") for a in assets)
 
     # Visibility summary: how many interactions expose each signal.
     visibility_summary = {
@@ -90,6 +94,7 @@ def dashboard(db: Session = Depends(get_db)):
         total_interactions=total_interactions,
         monitoring_limited=monitoring_limited,
         connections=connections,
+        simulated_evidence=simulated_evidence,
         recent_runs=[RunOut.model_validate(r).model_dump() for r in recent_runs],
         visibility_summary=visibility_summary,
     )

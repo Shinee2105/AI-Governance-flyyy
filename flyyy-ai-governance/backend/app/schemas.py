@@ -1,4 +1,4 @@
-"""
+﻿"""
 Pydantic schemas (request/response models) for the API layer.
 """
 
@@ -49,6 +49,7 @@ class AIAssetAccessOut(BaseModel):
     principal_name: str | None = None
     display_name: str | None = None
     email: str | None = None
+    access_type: str | None = None
     access_level: str | None = None
     license_sku: str | None = None
     source: str | None = None
@@ -64,6 +65,7 @@ class AIAssetOut(BaseModel):
     saas_platform: str
     ai_capability: str
     enabled: bool
+    capability_status: str
     status: str
     purpose: str | None = None
     accessible_resources: list[str] = Field(default_factory=list)
@@ -76,6 +78,9 @@ class AIAssetOut(BaseModel):
     last_seen_at: datetime | None = None
     access_count: int = 0
     interaction_count: int = 0
+    # True when this asset came from the demonstration connector (not a real
+    # SaaS tenant). The UI surfaces this prominently.
+    simulated: bool = False
 
 
 class AIAssetDetailOut(AIAssetOut):
@@ -98,6 +103,7 @@ class AIInteractionOut(BaseModel):
     id: str
     asset_id: str | None = None
     connection_id: str | None = None
+    external_event_id: str | None = None
     user_email: str | None = None
     user_display_name: str | None = None
     principal_type: str | None = None
@@ -114,6 +120,7 @@ class AIInteractionOut(BaseModel):
     usage_available: bool
     source: str | None = None
     visibility_note: str | None = None
+    simulated: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -147,6 +154,7 @@ class DashboardStats(BaseModel):
     total_interactions: int
     monitoring_limited: int
     connections: int
+    simulated_evidence: bool
     recent_runs: list[RunOut] = Field(default_factory=list)
     visibility_summary: dict[str, int] = Field(default_factory=dict)
 

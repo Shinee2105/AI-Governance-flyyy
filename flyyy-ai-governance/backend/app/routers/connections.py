@@ -1,4 +1,4 @@
-"""Connections (SaaS connectors) API — configuration, discovery & monitoring."""
+"""Connections (SaaS connectors) API - configuration, discovery & monitoring."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ def list_connections(db: Session = Depends(get_db)):
     return [ConnectionOut.model_validate(c).model_dump() for c in rows]
 
 
-@router.post("", response_model=ConnectionOut)
+@router.post("", response_model=ConnectionOut, status_code=201)
 def create_connection(
     payload: ConnectionCreate,
     db: Session = Depends(get_db),
@@ -102,7 +102,8 @@ async def trigger_discovery(
     conn = db.get(Connection, connection_id)
     if not conn:
         raise HTTPException(status_code=404, detail="Connection not found")
-    run = await run_discovery(db, conn)
+    run_id = await run_discovery(conn)
+    run = db.get(Run, run_id)
     return RunOut.model_validate(run).model_dump()
 
 
@@ -115,5 +116,6 @@ async def trigger_monitoring(
     conn = db.get(Connection, connection_id)
     if not conn:
         raise HTTPException(status_code=404, detail="Connection not found")
-    run = await run_monitoring(db, conn, since=None)
+    run_id = await run_monitoring(conn, since=None)
+    run = db.get(Run, run_id)
     return RunOut.model_validate(run).model_dump()

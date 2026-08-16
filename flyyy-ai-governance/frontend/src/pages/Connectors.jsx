@@ -1,6 +1,12 @@
-import React, { useEffect, useState, useCallback } from "react";
+﻿import React, { useEffect, useState, useCallback } from "react";
 import { api, getToken } from "../api.js";
-import { Loading, ErrorBox, statusBadge } from "../components/ui.jsx";
+import { Loading, ErrorBox, statusBadge, DemoBadge, Badge } from "../components/ui.jsx";
+
+function ConnBadge({ conn, caps }) {
+  if (conn.connector_type === "demo") return <DemoBadge label="DEMO / SIMULATED" />;
+  if (caps && caps.configured) return <Badge kind="ok">LIVE (configured)</Badge>;
+  return <Badge kind="warn">LIVE (not configured)</Badge>;
+}
 
 export default function Connectors() {
   const [connections, setConnections] = useState(null);
@@ -58,7 +64,8 @@ export default function Connectors() {
         Each connector talks to a SaaS platform to discover AI capabilities and
         monitor interactions. The Microsoft 365 connector is built on real
         Microsoft Graph + Management Activity APIs; configure it via environment
-        variables to discover genuine evidence.
+        variables to discover genuine evidence. The Demo connector ships so the
+        app runs with no credentials.
       </p>
 
       {connections.map((conn) => {
@@ -68,7 +75,8 @@ export default function Connectors() {
             <div className="connector-head">
               <div>
                 <h2>{conn.name}</h2>
-                <span className="muted">{conn.connector_type} · {conn.platform}</span>
+                <span className="muted">{conn.connector_type} · {conn.platform}</span>{" "}
+                <ConnBadge conn={conn} caps={c} />
               </div>
               <div className="connector-actions">
                 <button

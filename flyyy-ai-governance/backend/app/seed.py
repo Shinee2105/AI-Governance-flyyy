@@ -1,14 +1,15 @@
-"""
+﻿"""
 Application bootstrap.
 
 On startup this module:
-  * creates database tables (dev convenience; production should use migrations),
+  * creates database tables in development (production should use Alembic
+    migrations - see README),
   * ensures a Demo connection and a placeholder Microsoft 365 connection exist,
   * if demo seeding is enabled and the inventory is empty, runs an initial
     discovery + monitoring pass so the UI is populated immediately.
 
-In production you would replace the SQLite auto-create with Alembic migrations
-and configure a real Microsoft 365 connector via environment variables.
+In production you would replace the auto-create with Alembic migrations and
+configure a real Microsoft 365 connector via environment variables.
 """
 
 from __future__ import annotations
@@ -38,7 +39,7 @@ def _ensure_connections(db: Session) -> Connection:
         db.commit()
         db.refresh(demo)
 
-    # Placeholder for a real tenant — clearly NOT configured until credentials
+    # Placeholder for a real tenant - clearly NOT configured until credentials
     # are supplied via environment variables.
     m365 = db.execute(
         select(Connection).where(Connection.connector_type == "microsoft365")
@@ -68,5 +69,5 @@ async def bootstrap(db: Session, seed_demo: bool) -> None:
         return
 
     # Run an initial discovery + monitoring pass against the demo connector.
-    await run_discovery(db, demo)
-    await run_monitoring(db, demo, since=None)
+    await run_discovery(demo)
+    await run_monitoring(demo, since=None)

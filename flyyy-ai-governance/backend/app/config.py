@@ -1,5 +1,5 @@
-"""
-Flyyy.ai — SaaS AI Discovery & Monitoring Platform
+﻿"""
+Flyyy.ai - SaaS AI Discovery & Monitoring Platform
 Application configuration loaded from environment variables / .env file.
 """
 
@@ -19,6 +19,13 @@ def _get_bool(name: str, default: bool = False) -> bool:
     return val.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _get_list(name: str, default: list[str]) -> list[str]:
+    val = os.getenv(name)
+    if not val:
+        return default
+    return [v.strip() for v in val.split(",") if v.strip()]
+
+
 class Settings:
     """Central application settings.
 
@@ -28,7 +35,7 @@ class Settings:
     """
 
     # ---- Core ----
-    APP_NAME: str = os.getenv("APP_NAME", "Flyyy.ai — SaaS AI Governance")
+    APP_NAME: str = os.getenv("APP_NAME", "Flyyy.ai - SaaS AI Governance")
     API_V1_PREFIX: str = "/api/v1"
     ENVIRONMENT: Literal["development", "production"] = os.getenv(
         "ENVIRONMENT", "development"
@@ -52,18 +59,31 @@ class Settings:
     )
     TOKEN_EXPIRE_MINUTES: int = int(os.getenv("TOKEN_EXPIRE_MINUTES", "1440"))
 
+    # ---- CORS ----
+    # Comma-separated list of allowed frontend origins.
+    # In development this is the Vite dev server. In production set it to your
+    # deployed frontend origin. Never combine a wildcard with credentials.
+    BACKEND_CORS_ORIGINS: list[str] = _get_list(
+        "BACKEND_CORS_ORIGINS", ["http://localhost:5173"]
+    )
+
     # ---- Demo data ----
     # When true (default in development), the app seeds realistic simulated data
     # on startup so the full workflow is demonstrable without SaaS credentials.
     SEED_DEMO_DATA: bool = _get_bool("SEED_DEMO_DATA", True)
 
-    # ---- Microsoft 365 connector (PLACEHOLDERS — fill after app registration) ----
+    # In production, table creation is performed by Alembic migrations, not by
+    # the application startup. This flag is auto-derived: it is ONLY true when
+    # ENVIRONMENT is not "production".
+    CREATE_TABLES_ON_STARTUP: bool = os.getenv("ENVIRONMENT", "development") != "production"
+
+    # ---- Microsoft 365 connector (PLACEHOLDERS - fill after app registration) ----
     # Create an Azure AD app registration with the required Graph / Management
     # Activity API permissions, then provide these values.
     MS365_TENANT_ID: str | None = os.getenv("MS365_TENANT_ID")
     MS365_CLIENT_ID: str | None = os.getenv("MS365_CLIENT_ID")
     MS365_CLIENT_SECRET: str | None = os.getenv("MS365_CLIENT_SECRET")
-    # Optional: shared client secret for the Office 365 Management Activity API.
+    # Optional: separate credentials for the Office 365 Management Activity API.
     MS365_MANAGEMENT_API_CLIENT_ID: str | None = os.getenv(
         "MS365_MANAGEMENT_API_CLIENT_ID"
     )

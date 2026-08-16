@@ -1,4 +1,4 @@
-"""
+﻿"""
 SQLAlchemy ORM models for the SaaS AI governance platform.
 
 The schema is intentionally explicit about *visibility*: every monitoring
@@ -20,6 +20,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -62,6 +63,32 @@ class MonitoringStatus(str, PyEnum):
     PARTIAL = "Partial Visibility"
     LIMITED = "Limited Visibility"
     NOT_AVAILABLE = "Not Available"
+
+
+class CapabilityStatus(str, PyEnum):
+    """Precise enablement state derived from *evidence*, not assumption.
+
+    We deliberately separate "LICENSED" (a license/SKU is assigned, proving the
+    capability is provisioned for the tenant/users) from "ENABLED" (an explicit
+    enablement signal we can observe). Microsoft 365 Copilot is enabled
+    per-user via license assignment, so we record LICENSED rather than claiming
+    a separate, unverified "ENABLED" state.
+    """
+
+    LICENSED = "Licensed"
+    ENABLED = "Enabled"
+    DISABLED = "Disabled"
+    UNKNOWN = "Unknown"
+    NOT_OBSERVABLE = "Not Observable"
+
+
+class AccessType(str, PyEnum):
+    """How a principal's access to an AI capability was established."""
+
+    DIRECT_LICENSE = "Direct (license assigned to user)"
+    GROUP_LICENSE = "Group (license assigned to group)"
+    UNKNOWN = "Unknown"
+    NOT_OBSERVABLE = "Not Observable"
 
 
 class PrincipalType(str, PyEnum):
@@ -114,6 +141,7 @@ class AIAsset(Base):
     """An AI capability discovered inside a SaaS environment (the inventory)."""
 
     __tablename__ = "ai_assets"
+    __table_args__ = (Index("ix_ai_assets_connection", "connection_id"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     connection_id: Mapped[str | None] = mapped_column(
@@ -126,6 +154,10 @@ class AIAsset(Base):
     saas_platform: Mapped[str] = mapped_column(String(128), nullable=False)
     ai_capability: Mapped[str] = mapped_column(String(255), nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Precise enablement evidence (LICENSED vs ENABLED vs UNKNOWN).
+    capability_status: Mapped[CapabilityStatus] = mapped_column(
+        Enum(CapabilityStatus), default=CapabilityStatus.UNKNOWN
+    )
     status: Mapped[AssetStatus] = mapped_column(
         Enum(AssetStatus), default=AssetStatus.DISCOVERED_PENDING_REVIEW
     )
@@ -168,6 +200,7 @@ class AIAssetAccess(Base):
     """A user or group that has access to a discovered AI asset (evidence)."""
 
     __tablename__ = "ai_asset_access"
+    __table_args__ = (Index("ix_ai_asset_access_asset", "asset_id"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     asset_id: Mapped[str] = mapped_column(
@@ -178,6 +211,10 @@ class AIAssetAccess(Base):
     principal_name: Mapped[str | None] = mapped_column(String(255))
     display_name: Mapped[str | None] = mapped_column(String(255))
     email: Mapped[str | None] = mapped_column(String(255))
+    # How access was established (direct license vs group license vs unknown).
+    access_type: Mapped[AccessType] = mapped_column(
+        Enum(AccessType), default=AccessType.UNKNOWN
+    )
     access_level: Mapped[str | None] = mapped_column(String(128))
     license_sku: Mapped[str | None] = mapped_column(String(255))
     source: Mapped[str | None] = mapped_column(String(255))
@@ -192,6 +229,17 @@ class AIInteraction(Base):
     """A single observed AI interaction (monitoring component)."""
 
     __tablename__ = "ai_interactions"
+    __table_args__ = (
+        Index("ix_ai_interactions_connection", "connection_id"),
+        Index("ix_ai_interactions_asset", "asset_id"),
+        Index("ix_ai_interactions_timestamp", "timestamp"),
+        Index(
+            "ix_ai_interactions_ext_event",
+            "connection_id",
+            "external_event_id",
+            unique=True,
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     asset_id: Mapped[str | None] = mapped_column(
@@ -200,6 +248,10 @@ class AIInteraction(Base):
     connection_id: Mapped[str | None] = mapped_column(
         ForeignKey("connections.id", ondelete="SET NULL")
     )
+    # Stable external identifier from the provider (if available) used for
+    # idempotent monitoring. Nullable because some sources lack a stable id; in
+    # that case a deterministic fingerprint is used instead.
+    external_event_id: Mapped[str | None] = mapped_column(String(255))
     # --- Identity / context ---
     user_email: Mapped[str | None] = mapped_column(String(255))
     user_display_name: Mapped[str | None] = mapped_column(String(255))

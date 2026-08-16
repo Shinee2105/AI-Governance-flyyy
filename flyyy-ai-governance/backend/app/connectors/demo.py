@@ -1,17 +1,21 @@
-"""
+﻿"""
 Demonstration connector.
 
-Generates *realistic simulated* data so the full discovery → inventory →
-monitoring → review workflow is demonstrable end-to-end **without** any real
+Generates *realistic simulated* data so the full discovery -> inventory ->
+monitoring -> review workflow is demonstrable end-to-end **without** any real
 SaaS credentials. Every record produced here is clearly tagged as simulated in
-its ``source`` / ``visibility_note`` so it is never mistaken for observed
-evidence.
+its ``source`` / ``visibility_note`` / ``evidence`` so it is never mistaken for
+observed evidence.
 
 The simulated data intentionally mirrors the honest limitations described in the
 challenge: for Microsoft 365 Copilot the prompt/response/model are *not
 available* (matching the real connector), whereas other platforms in the demo
 expose different slices of visibility. This lets the UI show the full range of
 the ``*_available`` states.
+
+Demo interactions carry deterministic ``external_event_id`` values so that
+repeated monitoring runs remain idempotent (same id -> skipped), exactly like the
+real connector's behaviour.
 """
 
 from __future__ import annotations
@@ -28,7 +32,7 @@ from app.connectors.base import (
     MonitoringResult,
     ObservedInteraction,
 )
-from app.models import PrincipalType
+from app.models import AccessType, CapabilityStatus, PrincipalType
 
 _DEMO_USERS = [
     ("Ava Sharma", "ava.sharma", "sales"),
@@ -70,6 +74,7 @@ class DemoConnector(BaseConnector):
             saas_platform="Microsoft 365",
             ai_capability="Copilot for Microsoft 365",
             enabled=True,
+            capability_status=CapabilityStatus.LICENSED.value,
             purpose=(
                 "Generative AI assistant embedded across Microsoft 365 that "
                 "summarises, drafts, and reasons over business data."
@@ -83,7 +88,7 @@ class DemoConnector(BaseConnector):
                 "Excel",
                 "PowerPoint",
             ],
-            discovery_source="Simulated — Microsoft Graph (subscribedSkus)",
+            discovery_source="Simulated - Microsoft Graph (subscribedSkus)",
             monitoring_status="Partial Visibility",
             metadata={"simulated": True, "license_skus": ["MICROSOFT_365_COPILOT"]},
             tenant_id="demo-contoso",
@@ -95,9 +100,10 @@ class DemoConnector(BaseConnector):
                 principal_name=f"{un}@contoso.com",
                 display_name=nm,
                 email=f"{un}@contoso.com",
-                access_level="Licensed",
+                access_type=AccessType.DIRECT_LICENSE.value,
+                access_level="Licensed (direct)",
                 license_sku="MICROSOFT_365_COPILOT",
-                source="Simulated — user.assignedLicenses",
+                source="Simulated - user.assignedLicenses",
             )
             for i, (nm, un, _grp) in enumerate(_DEMO_USERS)
         ]
@@ -112,9 +118,10 @@ class DemoConnector(BaseConnector):
             saas_platform="Slack",
             ai_capability="Slack AI (thread summaries, search, recaps)",
             enabled=True,
+            capability_status=CapabilityStatus.LICENSED.value,
             purpose="In-channel AI: conversation summaries, search answers, recaps.",
             accessible_resources=["Slack Workspace #general", "#sales", "#eng"],
-            discovery_source="Simulated — Slack admin API (aiSettings)",
+            discovery_source="Simulated - Slack admin API (aiSettings)",
             monitoring_status="Limited Visibility",
             metadata={"simulated": True},
             tenant_id="demo-contoso",
@@ -125,8 +132,9 @@ class DemoConnector(BaseConnector):
                 principal_id="g-sales",
                 principal_name="Sales",
                 display_name="Sales",
+                access_type=AccessType.GROUP_LICENSE.value,
                 access_level="Workspace Enabled",
-                source="Simulated — Slack workspace settings",
+                source="Simulated - Slack workspace settings",
             )
         ]
         result.assets.append(slack_asset)
@@ -140,9 +148,10 @@ class DemoConnector(BaseConnector):
             saas_platform="Notion",
             ai_capability="Notion AI (write, summarise, Q&A)",
             enabled=True,
+            capability_status=CapabilityStatus.LICENSED.value,
             purpose="AI writing assistant and workspace Q&A inside Notion.",
             accessible_resources=["Notion Workspace"],
-            discovery_source="Simulated — Notion workspace API",
+            discovery_source="Simulated - Notion workspace API",
             monitoring_status="Partial Visibility",
             metadata={"simulated": True},
             tenant_id="demo-contoso",
@@ -153,15 +162,16 @@ class DemoConnector(BaseConnector):
                 principal_id="g-eng",
                 principal_name="Engineering",
                 display_name="Engineering",
+                access_type=AccessType.GROUP_LICENSE.value,
                 access_level="Add-on Enabled",
-                source="Simulated — Notion billing/settings",
+                source="Simulated - Notion billing/settings",
             )
         ]
         result.assets.append(notion_asset)
         result.accesses[notion_asset.name] = notion_access
 
         result.notes = [
-            "SIMULATED DATA — no real SaaS tenant was contacted. "
+            "SIMULATED DATA - no real SaaS tenant was contacted. "
             "Replace the demo connection with a configured Microsoft 365 "
             "connector to discover real evidence."
         ]
@@ -171,8 +181,9 @@ class DemoConnector(BaseConnector):
     async def monitor(self, since: datetime | None = None) -> MonitoringResult:
         result = MonitoringResult()
         now = datetime.now(timezone.utc)
+        idx = 0
 
-        # Microsoft 365 Copilot: honest limitation — content NOT available.
+        # Microsoft 365 Copilot: honest limitation - content NOT available.
         for i in range(18):
             u = random.choice(_DEMO_USERS)
             result.interactions.append(
@@ -191,19 +202,21 @@ class DemoConnector(BaseConnector):
                     response_available=False,
                     token_usage=None,
                     usage_available=False,
-                    source="Simulated — Office 365 Management Activity API",
+                    source="Simulated - Office 365 Management Activity API",
                     visibility_note=(
                         "SIMULATED. In a real tenant, Microsoft 365 audit logs "
                         "expose only interaction metadata, not prompt/response."
                     ),
+                    external_event_id=f"demo-m365-{idx}",
                     asset_keys={
                         "saas_platform": "Microsoft 365",
                         "ai_capability": "Copilot for Microsoft 365",
                     },
                 )
             )
+            idx += 1
 
-        # Slack AI: partial — we can see a request summary, not the response.
+        # Slack AI: partial - we can see a request summary, not the response.
         for i in range(8):
             u = random.choice(_DEMO_USERS)
             result.interactions.append(
@@ -222,17 +235,19 @@ class DemoConnector(BaseConnector):
                     response_available=False,
                     token_usage=None,
                     usage_available=False,
-                    source="Simulated — Slack audit logs",
+                    source="Simulated - Slack audit logs",
                     visibility_note=(
                         "SIMULATED. Slack exposes the action type but not the "
                         "generated summary text."
                     ),
+                    external_event_id=f"demo-slack-{idx}",
                     asset_keys={
                         "saas_platform": "Slack",
                         "ai_capability": "Slack AI (thread summaries, search, recaps)",
                     },
                 )
             )
+            idx += 1
 
         # Notion AI: simulates model being exposed for some plans.
         for i in range(6):
@@ -257,17 +272,19 @@ class DemoConnector(BaseConnector):
                         "total_tokens": random.randint(200, 1400),
                     },
                     usage_available=True,
-                    source="Simulated — Notion AI usage API",
+                    source="Simulated - Notion AI usage API",
                     visibility_note=(
                         "SIMULATED. Notion's usage API can expose model + token "
                         "counts for some plans."
                     ),
+                    external_event_id=f"demo-notion-{idx}",
                     asset_keys={
                         "saas_platform": "Notion",
                         "ai_capability": "Notion AI (write, summarise, Q&A)",
                     },
                 )
             )
+            idx += 1
 
         result.notes = [
             "SIMULATED monitoring data. Replace with a configured connector "
@@ -281,8 +298,8 @@ class DemoConnector(BaseConnector):
             platform="Demo / Simulated",
             discovery=[
                 "Simulated AI capability presence",
-                "Simulated enabled status",
-                "Simulated user/group access",
+                "Simulated enabled/provisioned status (LICENSED)",
+                "Simulated direct + group access",
                 "Simulated license / entitlement",
                 "Simulated associated resources",
             ],

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Connector framework.
 
 A *connector* is the pluggable adapter that talks to a specific SaaS platform.
@@ -35,6 +35,8 @@ class DiscoveredAsset:
     saas_platform: str
     ai_capability: str
     enabled: bool
+    # Precise enablement evidence (LICENSED / ENABLED / UNKNOWN / ...).
+    capability_status: str = "Unknown"
     purpose: str | None = None
     accessible_resources: list[str] = field(default_factory=list)
     discovery_source: str | None = None
@@ -52,6 +54,8 @@ class DiscoveredAccess:
     principal_name: str | None = None
     display_name: str | None = None
     email: str | None = None
+    # How access was established (Direct license / Group license / Unknown).
+    access_type: str | None = None
     access_level: str | None = None
     license_sku: str | None = None
     source: str | None = None
@@ -84,6 +88,8 @@ class ObservedInteraction:
     source: str | None = None
     visibility_note: str | None = None
     raw_event: dict[str, Any] | None = None
+    # Stable external event id (for idempotent monitoring) or None.
+    external_event_id: str | None = None
     # Keys used to link the interaction back to a discovered asset.
     asset_keys: dict[str, str] = field(default_factory=dict)
 
@@ -103,12 +109,14 @@ class DiscoveryResult:
     assets: list[DiscoveredAsset] = field(default_factory=list)
     accesses: dict[str, list[DiscoveredAccess]] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class MonitoringResult:
     interactions: list[ObservedInteraction] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class BaseConnector(abc.ABC):

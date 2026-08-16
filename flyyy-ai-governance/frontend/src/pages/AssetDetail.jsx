@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api } from "../api.js";
-import { Loading, ErrorBox, statusBadge, Avail } from "../components/ui.jsx";
+import { Loading, ErrorBox, statusBadge, Avail, DemoBadge } from "../components/ui.jsx";
 
 export default function AssetDetail() {
   const { id } = useParams();
@@ -28,12 +28,14 @@ export default function AssetDetail() {
       <Link to="/assets" className="back">← All assets</Link>
       <h1>{asset.name}</h1>
       <p className="muted">{asset.ai_capability}</p>
+      {asset.simulated && <DemoBadge label="SIMULATED DATA" />}
 
       <div className="detail-grid">
         <Field label="Type" value={asset.asset_type} />
         <Field label="Provider" value={asset.provider} />
         <Field label="Platform" value={asset.saas_platform} />
         <Field label="Status" value={statusBadge(asset.status)} />
+        <Field label="Capability state" value={statusBadge(asset.capability_status)} />
         <Field label="Enabled" value={asset.enabled ? "Yes" : "No"} />
         <Field label="Review" value={statusBadge(asset.review_status)} />
         <Field label="Monitoring" value={statusBadge(asset.monitoring_status)} />
@@ -51,12 +53,18 @@ export default function AssetDetail() {
       </div>
 
       <h2>Who can use it ({asset.access_count})</h2>
+      <p className="muted small">
+        Access is established either by a license assigned directly to the user,
+        or by group-based licensing (a group the user belongs to is licensed,
+        including nested groups). We never equate "licensed" with "fully verified
+        enabled".
+      </p>
       <table className="table">
         <thead>
           <tr>
             <th>Principal</th>
             <th>Type</th>
-            <th>Access</th>
+            <th>Access basis</th>
             <th>License</th>
             <th>Evidence</th>
           </tr>
@@ -69,7 +77,7 @@ export default function AssetDetail() {
                 <div className="muted small">{a.email}</div>
               </td>
               <td>{a.principal_type}</td>
-              <td>{a.access_level}</td>
+              <td>{a.access_type || a.access_level || "—"}</td>
               <td>{a.license_sku || "—"}</td>
               <td className="muted small">{a.source}</td>
             </tr>

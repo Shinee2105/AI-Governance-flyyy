@@ -1,49 +1,72 @@
-"""
+﻿"""
 Monitoring orchestration service.
 
 Runs a connector's ``monitor()`` to capture AI interactions, links each
 interaction to the discovered asset it belongs to (by platform + capability),
-and records a :class:`Run` audit entry. Duplicate interactions (same identity,
-timestamp and source) are skipped so re-runs are idempotent.
+and records a :class:`Run` audit entry.
+
+Idempotency: each observed interaction carries a stable ``external_event_id``
+(the provider's own id when available, otherwise a deterministic fingerprint).
+Repeated monitoring runs skip events already stored for the same connection,
+so the same audit record is never persisted twice.
+
+The network/IO part (``connector.monitor()``) runs in the async event loop; the
+blocking database persistence runs in a worker thread via
+``asyncio.to_thread`` using its own session. Provider failures are recorded as a
+FAILED run rather than crashing the request.
 """
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.connectors.registry import effective_connector
+from app.database import SessionLocal
 from app.models import (
     AIAsset,
     AIInteraction,
     Connection,
+    PrincipalType,
     Run,
     RunStatus,
 )
-from app.models import PrincipalType
 
 
-async def run_monitoring(
-    db: Session, connection: Connection, since: datetime | None = None
-) -> Run:
-    run = Run(connection_id=connection.id, run_type="monitoring")
+async def run_monitoring(connection: Connection, since=None) -> str:
+    """Monitor and persist. Returns the created Run id."""
+    connector, using_fallback = effective_connector(
+        connection.connector_type, connection.config
+    )
+    try:
+        result = await connector.monitor(since)
+    except Exception as exc:  # noqa: BLE001 - provider failure -> FAILED run
+        return await asyncio.to_thread(
+            _persist_failed, connection.id, "monitoring", _safe_err(exc)
+        )
+    out = await asyncio.to_thread(
+        _persist_monitoring, connection.id, result, using_fallback
+    )
+    return out["run_id"]
+
+
+def _persist_monitoring(connection_id: str, result, using_fallback: bool) -> dict:
+    db: Session = SessionLocal()
+    run = Run(connection_id=connection_id, run_type="monitoring")
     db.add(run)
     db.commit()
     db.refresh(run)
-
     try:
-        connector, using_fallback = effective_connector(
-            connection.connector_type, connection.config
-        )
-        result = await connector.monitor(since)
-
-        # Index existing assets for fast linking.
         assets = db.execute(select(AIAsset)).scalars().all()
-        asset_index = {
-            (a.saas_platform, a.ai_capability): a.id for a in assets
-        }
+        asset_index = {(a.saas_platform, a.ai_capability): a.id for a in assets}
+
+        # Track external_event_ids already seen in this batch (in addition to
+        # the DB) to prevent UNIQUE-constraint violations on duplicate records
+        # within the same monitoring run that have not been flushed yet.
+        seen_ext_ids = set()
 
         for inter in result.interactions:
             asset_id = None
@@ -53,13 +76,17 @@ async def run_monitoring(
             if plat and cap:
                 asset_id = asset_index.get((plat, cap))
 
-            if _exists(db, connection.id, inter):
+            ext_id = inter.external_event_id
+            if ext_id and (ext_id in seen_ext_ids or _exists(db, connection_id, ext_id, inter)):
                 continue
+            if ext_id:
+                seen_ext_ids.add(ext_id)
 
             db.add(
                 AIInteraction(
                     asset_id=asset_id,
-                    connection_id=connection.id,
+                    connection_id=connection_id,
+                    external_event_id=ext_id,
                     user_email=inter.user_email,
                     user_display_name=inter.user_display_name,
                     principal_type=(
@@ -85,26 +112,64 @@ async def run_monitoring(
             )
             run.interactions_found += 1
 
-        connection.last_run_at = datetime.now(timezone.utc)
-        run.status = RunStatus.SUCCESS
+        conn = db.get(Connection, connection_id)
+        if conn:
+            conn.last_run_at = datetime.now(timezone.utc)
+
+        diag = (result.metadata or {}).get("diagnostics")
+        had_errors = bool(diag and diag.get("errors"))
+        # Zero events + provider errors => PARTIAL. Zero events + no errors =>
+        # SUCCESSFUL window with no currently available events (NOT "no usage").
+        if run.interactions_found == 0 and had_errors:
+            run.status = RunStatus.PARTIAL
+        else:
+            run.status = RunStatus.SUCCESS
         run.summary = {
             "using_fallback": using_fallback,
             "notes": result.notes,
+            "interactions_normalized": run.interactions_found,
+            "diagnostics": diag,
         }
         db.commit()
     except Exception as exc:  # noqa: BLE001
         db.rollback()
         run.status = RunStatus.FAILED
-        run.error = str(exc)
+        run.error = _safe_err(exc)
         db.commit()
     finally:
         run.finished_at = datetime.now(timezone.utc)
         db.commit()
         db.refresh(run)
-    return run
+    return {"run_id": run.id, "status": run.status.value, "summary": run.summary}
 
 
-def _exists(db: Session, connection_id: str, inter) -> bool:
+def _persist_failed(connection_id: str, run_type: str, error: str) -> str:
+    db: Session = SessionLocal()
+    run = Run(connection_id=connection_id, run_type=run_type)
+    run.status = RunStatus.FAILED
+    run.error = error
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+    conn = db.get(Connection, connection_id)
+    if conn:
+        conn.status = "Error"
+        db.commit()
+    run_id = run.id
+    db.close()
+    return run_id
+
+
+def _exists(
+    db: Session, connection_id: str, external_event_id: str | None, inter
+) -> bool:
+    """Return True if this event is already stored for the connection."""
+    if external_event_id:
+        stmt = select(AIInteraction).where(
+            AIInteraction.connection_id == connection_id,
+            AIInteraction.external_event_id == external_event_id,
+        )
+        return db.execute(stmt).first() is not None
     stmt = select(AIInteraction).where(
         AIInteraction.connection_id == connection_id,
         AIInteraction.user_email == inter.user_email,
@@ -113,3 +178,12 @@ def _exists(db: Session, connection_id: str, inter) -> bool:
         AIInteraction.source == inter.source,
     )
     return db.execute(stmt).first() is not None
+
+
+def _safe_err(exc: Exception) -> str:
+    text = str(exc)
+    import re
+
+    text = re.sub(r"(client_secret=)[^&\s]+", r"\1<redacted>", text)
+    text = re.sub(r"Bearer\s+[A-Za-z0-9._-]+", "Bearer <redacted>", text)
+    return text[:500]

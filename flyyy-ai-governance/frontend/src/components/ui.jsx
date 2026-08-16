@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 
 // Status pill with colour coding.
 export function Badge({ kind = "neutral", children }) {
@@ -11,12 +11,22 @@ export function statusBadge(status) {
   const s = status.toLowerCase();
   let kind = "neutral";
   if (s.includes("pending")) kind = "warn";
-  else if (s.includes("approved") || s.includes("enabled") || s.includes("connected") || s.includes("success"))
+  else if (s.includes("approved") || s.includes("enabled") || s.includes("connected") || s.includes("success") || s.includes("licensed"))
     kind = "ok";
   else if (s.includes("rejected") || s.includes("error") || s.includes("failed")) kind = "bad";
-  else if (s.includes("partial") || s.includes("limited") || s.includes("review")) kind = "warn";
+  else if (s.includes("partial") || s.includes("limited") || s.includes("review") || s.includes("unknown") || s.includes("not observable")) kind = "warn";
   else if (s.includes("not ")) kind = "muted";
   return <Badge kind={kind}>{status}</Badge>;
+}
+
+// Prominent marker for demonstration / simulated data so it is never mistaken
+// for real evidence from a SaaS tenant.
+export function DemoBadge({ label = "SIMULATED" }) {
+  return <span className="badge badge-demo">⚠ {label}</span>;
+}
+
+export function isSimulated(obj) {
+  return Boolean(obj && obj.simulated);
 }
 
 // Small dot indicating whether a piece of evidence is available.

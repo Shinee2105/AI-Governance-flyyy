@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useCallback } from "react";
+﻿import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api.js";
-import { Loading, ErrorBox, statusBadge } from "../components/ui.jsx";
+import { Loading, ErrorBox, statusBadge, DemoBadge } from "../components/ui.jsx";
 
 const REVIEW_OPTIONS = ["Pending", "In Review", "Approved", "Rejected"];
 
@@ -69,7 +69,7 @@ export default function Assets() {
             <th>Asset</th>
             <th>Provider</th>
             <th>Platform</th>
-            <th>Enabled</th>
+            <th>Capability</th>
             <th>Monitoring</th>
             <th>Accesses</th>
             <th>Interactions</th>
@@ -81,11 +81,14 @@ export default function Assets() {
             <tr key={a.id} onClick={() => navigate(`/assets/${a.id}`)} className="row-click">
               <td>
                 <strong>{a.name}</strong>
+                {a.simulated && (
+                  <div><DemoBadge label="SIMULATED" /></div>
+                )}
                 <div className="muted small">{a.ai_capability}</div>
               </td>
               <td>{a.provider}</td>
               <td>{a.saas_platform}</td>
-              <td>{a.enabled ? "✅" : "❌"}</td>
+              <td>{statusBadge(a.capability_status)}</td>
               <td>{statusBadge(a.monitoring_status)}</td>
               <td>{a.access_count}</td>
               <td>{a.interaction_count}</td>

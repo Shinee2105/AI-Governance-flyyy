@@ -1,4 +1,4 @@
-"""Assets (AI inventory) API."""
+﻿"""Assets (AI inventory) API."""
 
 from __future__ import annotations
 
@@ -17,11 +17,16 @@ from app.schemas import (
 router = APIRouter(prefix="/assets", tags=["assets"])
 
 
+def _is_simulated(asset: AIAsset) -> bool:
+    return bool((asset.evidence or {}).get("simulated"))
+
+
 def _serialize(asset: AIAsset, counts: bool = True) -> dict:
     data = AIAssetOut.model_validate(asset).model_dump()
     if counts:
         data["access_count"] = len(asset.accesses)
         data["interaction_count"] = len(asset.interactions)
+    data["simulated"] = _is_simulated(asset)
     return data
 
 
@@ -61,6 +66,7 @@ def get_asset(asset_id: str, db: Session = Depends(get_db)):
     data["interaction_count"] = len(asset.interactions)
     data["accesses"] = [AIAssetAccessOut.model_validate(a).model_dump()
                         for a in asset.accesses]
+    data["simulated"] = _is_simulated(asset)
     return data
 
 
@@ -88,4 +94,5 @@ def update_asset(
     data["interaction_count"] = len(asset.interactions)
     data["accesses"] = [AIAssetAccessOut.model_validate(a).model_dump()
                         for a in asset.accesses]
+    data["simulated"] = _is_simulated(asset)
     return data

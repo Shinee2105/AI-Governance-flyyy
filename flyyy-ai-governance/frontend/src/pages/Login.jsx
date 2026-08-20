@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, login, devAutologinEnabled } from "../api.js";
 import { ErrorBox } from "../components/ui.jsx";
@@ -40,18 +40,25 @@ export default function Login() {
         )}
         <form onSubmit={submit}>
           <input
+            className="input"
             placeholder="Username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             autoFocus
           />
           <input
+            className="input"
             type="password"
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          <button type="submit" disabled={busy}>
+          <button
+            type="submit"
+            disabled={busy}
+            className="btn btn-primary"
+            style={{ width: "100%" }}
+          >
             {busy ? "Signing in…" : "Sign in"}
           </button>
         </form>

@@ -4,12 +4,12 @@ Application bootstrap.
 On startup this module:
   * creates database tables in development (production should use Alembic
     migrations - see README),
-  * ensures a Demo connection and a placeholder Microsoft 365 connection exist,
+  * ensures a Demo connection and a placeholder Salesforce connection exist,
   * if demo seeding is enabled and the inventory is empty, runs an initial
     discovery + monitoring pass so the UI is populated immediately.
 
 In production you would replace the auto-create with Alembic migrations and
-configure a real Microsoft 365 connector via environment variables.
+configure a real Salesforce connector via environment variables.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import AIAsset, Connection
+from app.models import AIAsset, AIAssetAccess, AIInteraction, Run, Connection
 from app.services.discovery_service import run_discovery
 from app.services.monitoring_service import run_monitoring
 
@@ -39,22 +39,22 @@ def _ensure_connections(db: Session) -> Connection:
         db.commit()
         db.refresh(demo)
 
-    # Placeholder for a real tenant - clearly NOT configured until credentials
-    # are supplied via environment variables.
-    m365 = db.execute(
-        select(Connection).where(Connection.connector_type == "microsoft365")
+    # Placeholder for a real Salesforce org - clearly NOT configured until
+    # credentials are supplied via environment variables.
+    sf = db.execute(
+        select(Connection).where(Connection.connector_type == "salesforce")
     ).scalars().first()
-    if m365 is None:
-        m365 = Connection(
-            name="Microsoft 365 (configure me)",
-            platform="Microsoft 365",
-            connector_type="microsoft365",
+    if sf is None:
+        sf = Connection(
+            name="Salesforce (configure me)",
+            platform="Salesforce",
+            connector_type="salesforce",
             status="Not Configured",
-            config={"note": "Provide MS365_* env vars and set MS365_ENABLED=true"},
+            config={"note": "Provide SFDC_* env vars and set SFDC_ENABLED=true"},
         )
-        db.add(m365)
+        db.add(sf)
         db.commit()
-        db.refresh(m365)
+        db.refresh(sf)
     return demo
 
 

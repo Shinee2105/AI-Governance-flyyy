@@ -42,27 +42,31 @@ export default function Interactions() {
   if (!items) return <Loading />;
 
   return (
-    <div>
-      <h1>AI Interaction Monitoring</h1>
-      <p className="muted">
-        Captured AI interactions across SaaS applications. Expand a row to see
-        exactly what the platform exposed vs. withheld.
-      </p>
+    <div className="page">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">AI Interaction Monitoring</h1>
+          <p className="page-subtitle">
+            Captured AI interactions across SaaS applications. Expand a row to
+            see exactly what the platform exposed vs. withheld.
+          </p>
+        </div>
+      </div>
 
       <div className="filters">
-        <select value={app} onChange={(e) => setApp(e.target.value)}>
+        <select className="select" value={app} onChange={(e) => setApp(e.target.value)}>
           <option value="">All applications</option>
           {filters.applications.map((a) => (
             <option key={a} value={a}>{a}</option>
           ))}
         </select>
-        <select value={feature} onChange={(e) => setFeature(e.target.value)}>
+        <select className="select" value={feature} onChange={(e) => setFeature(e.target.value)}>
           <option value="">All features</option>
           {filters.features.map((f) => (
             <option key={f} value={f}>{f}</option>
           ))}
         </select>
-        <select value={user} onChange={(e) => setUser(e.target.value)}>
+        <select className="select" value={user} onChange={(e) => setUser(e.target.value)}>
           <option value="">All users</option>
           {filters.users.map((u) => (
             <option key={u} value={u}>{u}</option>
@@ -76,73 +80,94 @@ export default function Interactions() {
           />
           Metadata-only (no content)
         </label>
-        <button onClick={load}>Apply</button>
+        <button className="btn btn-secondary" onClick={load}>Apply</button>
         <span className="muted">{items.length} interactions</span>
       </div>
 
-      <table className="table">
-        <thead>
-          <tr>
-            <th></th>
-            <th>User</th>
-            <th>Application</th>
-            <th>Feature</th>
-            <th>Model</th>
-            <th>Time</th>
-            <th>Visibility</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((i) => (
-            <React.Fragment key={i.id}>
-              <tr onClick={() => setExpanded(expanded === i.id ? null : i.id)} className="row-click">
-                <td>{expanded === i.id ? "▾" : "▸"}</td>
-                <td>{i.user_display_name || i.user_email}</td>
-                <td>{i.saas_application}</td>
-                <td>{i.ai_feature}</td>
-                <td>{i.model_available ? i.model : "—"}</td>
-                <td className="muted small">{new Date(i.timestamp).toLocaleString()}</td>
-                <td>
-                  {(!i.request_available && !i.response_available)
-                    ? statusBadge("Limited Visibility")
-                    : statusBadge("Partial Visibility")}
-                </td>
-              </tr>
-              {expanded === i.id && (
-                <tr className="expanded">
-                  <td colSpan={7}>
-                    <div className="expand-grid">
-                      <div>
-                        <h4>Request</h4>
-                        <p>{i.request_available ? i.request_info : "Not exposed by the SaaS platform."}</p>
-                        <h4>Response</h4>
-                        <p>{i.response_available ? i.response_info : "Not exposed by the SaaS platform."}</p>
-                      </div>
-                      <div>
-                        <Avail value={i.request_available} label="Request" />
-                        <Avail value={i.response_available} label="Response" />
-                        <Avail value={i.model_available} label="Model" />
-                        <Avail value={i.usage_available} label="Usage" />
-                        {i.token_usage && (
-                          <div className="tokens">
-                            Tokens: {JSON.stringify(i.token_usage)}
-                          </div>
-                        )}
-                        <div className="vis-note">
-                          <strong>Source:</strong> {i.source}
-                        </div>
-                        {i.visibility_note && (
-                          <div className="vis-note">{i.visibility_note}</div>
-                        )}
-                      </div>
-                    </div>
+      <div className="interactions-table">
+        <table className="table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>User</th>
+              <th>Application</th>
+              <th>Feature</th>
+              <th>Model</th>
+              <th>Time</th>
+              <th>Visibility</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((i) => (
+              <React.Fragment key={i.id}>
+                <tr
+                  onClick={() => setExpanded(expanded === i.id ? null : i.id)}
+                  className="row-click"
+                >
+                  <td>
+                    <button className="expand-btn">
+                      {expanded === i.id ? "+" : "−"}
+                    </button>
+                  </td>
+                  <td>{i.user_display_name || i.user_email}</td>
+                  <td>{i.saas_application}</td>
+                  <td>{i.ai_feature}</td>
+                  <td>{i.model_available ? i.model : "—"}</td>
+                  <td className="muted small">
+                    {new Date(i.timestamp).toLocaleString()}
+                  </td>
+                  <td>
+                    {(!i.request_available && !i.response_available)
+                      ? statusBadge("Limited Visibility")
+                      : statusBadge("Partial Visibility")}
                   </td>
                 </tr>
-              )}
-            </React.Fragment>
-          ))}
-        </tbody>
-      </table>
+                {expanded === i.id && (
+                  <tr className="expanded-row">
+                    <td colSpan={7}>
+                      <div className="interaction-detail">
+                        <div className="interaction-content">
+                          <h4>Request</h4>
+                          <p>
+                            {i.request_available
+                              ? i.request_info
+                              : "Not exposed by the SaaS platform."}
+                          </p>
+                          <h4>Response</h4>
+                          <p>
+                            {i.response_available
+                              ? i.response_info
+                              : "Not exposed by the SaaS platform."}
+                          </p>
+                        </div>
+                        <div className="interaction-meta">
+                          <div className="vis-grid-small">
+                            <Avail value={i.request_available} label="Request" />
+                            <Avail value={i.response_available} label="Response" />
+                            <Avail value={i.model_available} label="Model" />
+                            <Avail value={i.usage_available} label="Usage" />
+                          </div>
+                          {i.token_usage && (
+                            <div className="tokens">
+                              Tokens: {JSON.stringify(i.token_usage)}
+                            </div>
+                          )}
+                          <div className="vis-note">
+                            <strong>Source:</strong> {i.source}
+                          </div>
+                          {i.visibility_note && (
+                            <div className="vis-note">{i.visibility_note}</div>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

@@ -122,9 +122,9 @@ class MonitoringResult:
 class BaseConnector(abc.ABC):
     """Abstract base for all SaaS connectors."""
 
-    #: Human readable platform name, e.g. "Microsoft 365".
+    #: Human readable platform name, e.g. "Salesforce".
     platform: str = "unknown"
-    #: Short connector type key used in the DB, e.g. "microsoft365".
+    #: Short connector type key used in the DB, e.g. "salesforce".
     connector_type: str = "unknown"
 
     def __init__(self, connection_config: dict[str, Any] | None = None) -> None:
@@ -145,3 +145,4 @@ class BaseConnector(abc.ABC):
     @abc.abstractmethod
     def capabilities(self) -> Capabilities:
         """Declare what the platform exposes vs. withholds."""
+

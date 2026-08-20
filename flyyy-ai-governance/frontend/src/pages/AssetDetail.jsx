@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api } from "../api.js";
 import { Loading, ErrorBox, statusBadge, Avail, DemoBadge } from "../components/ui.jsx";
@@ -24,11 +24,16 @@ export default function AssetDetail() {
   if (!asset) return <Loading />;
 
   return (
-    <div>
-      <Link to="/assets" className="back">← All assets</Link>
-      <h1>{asset.name}</h1>
-      <p className="muted">{asset.ai_capability}</p>
-      {asset.simulated && <DemoBadge label="SIMULATED DATA" />}
+    <div className="page">
+      <Link to="/assets" className="back-link">← All assets</Link>
+
+      <div className="asset-detail-header">
+        <div>
+          <h1 className="page-title">{asset.name}</h1>
+          <p className="muted">{asset.ai_capability}</p>
+        </div>
+        {asset.simulated && <DemoBadge label="SIMULATED DATA" />}
+      </div>
 
       <div className="detail-grid">
         <Field label="Type" value={asset.asset_type} />
@@ -42,78 +47,87 @@ export default function AssetDetail() {
         <Field label="Discovery source" value={asset.discovery_source} />
       </div>
 
-      <h2>Purpose</h2>
-      <p>{asset.purpose || "—"}</p>
-
-      <h2>Accessible Resources</h2>
-      <div className="chips">
-        {(asset.accessible_resources || []).map((r) => (
-          <span key={r} className="chip">{r}</span>
-        ))}
+      <div className="asset-detail-section">
+        <h2>Purpose</h2>
+        <p>{asset.purpose || "—"}</p>
       </div>
 
-      <h2>Who can use it ({asset.access_count})</h2>
-      <p className="muted small">
-        Access is established either by a license assigned directly to the user,
-        or by group-based licensing (a group the user belongs to is licensed,
-        including nested groups). We never equate "licensed" with "fully verified
-        enabled".
-      </p>
-      <table className="table">
-        <thead>
-          <tr>
-            <th>Principal</th>
-            <th>Type</th>
-            <th>Access basis</th>
-            <th>License</th>
-            <th>Evidence</th>
-          </tr>
-        </thead>
-        <tbody>
-          {asset.accesses.map((a) => (
-            <tr key={a.id}>
-              <td>
-                <strong>{a.display_name || a.principal_name}</strong>
-                <div className="muted small">{a.email}</div>
-              </td>
-              <td>{a.principal_type}</td>
-              <td>{a.access_type || a.access_level || "—"}</td>
-              <td>{a.license_sku || "—"}</td>
-              <td className="muted small">{a.source}</td>
-            </tr>
+      <div className="asset-detail-section">
+        <h2>Accessible Resources</h2>
+        <div className="chips">
+          {(asset.accessible_resources || []).map((r) => (
+            <span key={r} className="chip">{r}</span>
           ))}
-        </tbody>
-      </table>
+        </div>
+      </div>
 
-      <h2>Observed Interactions ({asset.interaction_count})</h2>
-      {interactions && interactions.length === 0 && (
-        <p className="muted">No interactions captured yet for this asset.</p>
-      )}
-      <table className="table">
-        <thead>
-          <tr>
-            <th>User</th>
-            <th>App</th>
-            <th>Model</th>
-            <th>Time</th>
-            <th>Content</th>
-          </tr>
-        </thead>
-        <tbody>
-          {(interactions || []).map((i) => (
-            <tr key={i.id}>
-              <td>{i.user_display_name || i.user_email}</td>
-              <td>{i.saas_application}</td>
-              <td>{i.model_available ? i.model : "—"}</td>
-              <td className="muted small">{new Date(i.timestamp).toLocaleString()}</td>
-              <td>
-                <Avail value={i.request_available} label="Req" />
-                <Avail value={i.response_available} label="Resp" />
-              </td>
+      <div className="asset-detail-section">
+        <h2>Who can use it ({asset.access_count})</h2>
+        <p className="muted small">
+          Access is established either by a license assigned directly to the
+          user, or by group-based licensing. We never equate "licensed" with
+          "fully verified enabled".
+        </p>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Principal</th>
+              <th>Type</th>
+              <th>Access basis</th>
+              <th>License</th>
+              <th>Evidence</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {asset.accesses.map((a) => (
+              <tr key={a.id}>
+                <td>
+                  <strong>{a.display_name || a.principal_name}</strong>
+                  <div className="muted small">{a.email}</div>
+                </td>
+                <td>{a.principal_type}</td>
+                <td>{a.access_type || a.access_level || "—"}</td>
+                <td>{a.license_sku || "—"}</td>
+                <td className="muted small">{a.source}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="asset-detail-section">
+        <h2>Observed Interactions ({asset.interaction_count})</h2>
+        {interactions && interactions.length === 0 && (
+          <p className="muted">No interactions captured yet for this asset.</p>
+        )}
+        <table className="table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>App</th>
+              <th>Model</th>
+              <th>Time</th>
+              <th>Content</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(interactions || []).map((i) => (
+              <tr key={i.id}>
+                <td>{i.user_display_name || i.user_email}</td>
+                <td>{i.saas_application}</td>
+                <td>{i.model_available ? i.model : "—"}</td>
+                <td className="muted small">
+                  {new Date(i.timestamp).toLocaleString()}
+                </td>
+                <td>
+                  <Avail value={i.request_available} label="Req" />
+                  <Avail value={i.response_available} label="Resp" />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

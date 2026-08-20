@@ -1,4 +1,4 @@
-"""Generate a valid Excalidraw architecture diagram for the README."""
+﻿"""Generate a valid Excalidraw architecture diagram for the README."""
 
 import json
 import os
@@ -122,18 +122,18 @@ add_rect(260, 160, 200, 60, "FastAPI (REST)", "#b2f2bb")
 add_rect(260, 280, 200, 60, "Connector Framework", "#b2f2bb")
 add_rect(500, 280, 180, 60, "Microsoft365\nConnector", "#ffec99")
 add_rect(500, 370, 180, 60, "Demo Connector", "#ffec99")
-add_rect(740, 280, 200, 60, "MS Graph API", "#ffc9c9")
-add_rect(740, 370, 200, 60, "Mgmt Activity API", "#ffc9c9")
+add_rect(740, 280, 200, 60, "Salesforce REST API", "#ffc9c9")
+add_rect(740, 370, 200, 60, "Session Trace OTel API", "#ffc9c9")
 add_rect(260, 460, 200, 60, "PostgreSQL", "#d0bfff")
 
 # Arrows
 add_arrow(120, 100, 120, 160)        # browser -> SPA
 add_arrow(200, 190, 260, 190)        # SPA -> FastAPI
 add_arrow(360, 220, 360, 280)        # FastAPI -> Connector framework
-add_arrow(460, 310, 500, 310)        # framework -> MS365 conn
+add_arrow(460, 310, 500, 310)        # framework -> SF conn
 add_arrow(460, 340, 500, 400)        # framework -> demo conn
-add_arrow(680, 310, 740, 310)        # ms365 -> graph
-add_arrow(680, 400, 740, 400)        # demo -> mgmt (visual)
+add_arrow(680, 310, 740, 310)        # sf -> rest api
+add_arrow(680, 400, 740, 400)        # demo -> simulated (visual)
 add_arrow(360, 340, 360, 460)        # framework -> db
 add_arrow(360, 220, 360, 220)        # noop guard
 
@@ -151,3 +151,4 @@ out = os.path.abspath(out)
 with open(out, "w") as f:
     json.dump(scene, f, indent=2)
 print("wrote", out, "with", len(elements), "elements")
+

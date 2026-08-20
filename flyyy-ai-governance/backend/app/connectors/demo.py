@@ -8,7 +8,7 @@ its ``source`` / ``visibility_note`` / ``evidence`` so it is never mistaken for
 observed evidence.
 
 The simulated data intentionally mirrors the honest limitations described in the
-challenge: for Microsoft 365 Copilot the prompt/response/model are *not
+challenge: for Salesforce Agentforce the prompt/response/model are *not
 available* (matching the real connector), whereas other platforms in the demo
 expose different slices of visibility. This lets the UI show the full range of
 the ``*_available`` states.
@@ -313,3 +313,4 @@ class DemoConnector(BaseConnector):
                 "Real prompts/responses (demo only illustrates the limitation)",
             ],
         )
+

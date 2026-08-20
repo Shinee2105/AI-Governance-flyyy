@@ -3,7 +3,7 @@
 import asyncio
 import httpx
 
-from app.connectors.microsoft365 import Microsoft365Connector
+from app.connectors.salesforce import SalesforceConnector
 from app.models import AIAsset, AIInteraction, Run
 from app.services.discovery_service import run_discovery
 from app.services.monitoring_service import run_monitoring
@@ -15,7 +15,7 @@ _RealAsyncClient = httpx.AsyncClient
 def _patch_http(monkeypatch, handler):
     transport = httpx.MockTransport(handler)
     monkeypatch.setattr(
-        "app.connectors.microsoft365.httpx.AsyncClient",
+        "app.connectors.salesforce_client.httpx.AsyncClient",
         lambda *a, **k: _RealAsyncClient(transport=transport),
     )
 
@@ -24,17 +24,20 @@ SCENARIO = {}
 
 
 def _handler(request):
-    if "login.microsoftonline.com" in str(request.url):
+    url = str(request.url)
+    if "oauth2/token" in url:
         return httpx.Response(200, json={"access_token": "tok", "expires_in": 3600})
-    if "manage.office.com" in str(request.url):
-        if request.method == "POST":
-            return httpx.Response(200, json={})
-        if "subscriptions/content" in str(request.url):
-            if "Audit.General" in str(request.url):
-                return httpx.Response(200, json=SCENARIO.get("content", []))
-            return httpx.Response(200, json=[])
-        return httpx.Response(200, json=SCENARIO.get("blob", []))
-    return httpx.Response(200, json=SCENARIO.get("blob", []))
+    if "services/data" in url:
+        path = request.url.path
+        query_params = request.url.params.get("q", "")
+        if "BotDefinition" in query_params:
+            return httpx.Response(200, json={"records": SCENARIO.get("bots", [])})
+        if "FROM User" in query_params:
+            return httpx.Response(200, json={"records": SCENARIO.get("users", [])})
+        if "einstein/audit/otel" in path:
+            sid = path.split("/")[-1]
+            return httpx.Response(200, json=SCENARIO.get("otel", {"resourceSpans": []}))
+    return httpx.Response(200, json={"records": []})
 
 
 def test_demo_discovery_and_monitoring_idempotent(demo_connection, db):
@@ -51,32 +54,48 @@ def test_demo_discovery_and_monitoring_idempotent(demo_connection, db):
     assert all(a.capability_status for a in assets)
 
 
-def test_m365_monitoring_dedupes_same_external_id(m365_connection, monkeypatch, db):
+def test_salesforce_monitoring_dedupes_same_external_id(salesforce_connection, monkeypatch, db):
     SCENARIO.clear()
-    SCENARIO["content"] = [{"contentUri": "http://blob/1"}]
-    SCENARIO["blob"] = [
-        {"Id": "SAME", "Operation": "CopilotInteraction", "UserId": "u@x",
-         "Workload": "Word", "CreationTime": "2024-01-01T10:00:00Z", "RecordType": 305},
-        {"Id": "SAME", "Operation": "CopilotInteraction", "UserId": "u@x",
-         "Workload": "Word", "CreationTime": "2024-01-01T10:00:00Z", "RecordType": 305},
-    ]
-    _patch_http(monkeypatch, _handler)
+    SCENARIO["bots"] = [{"Id": "bot1", "MasterLabel": "SA", "DeveloperName": "SA", "DeveloperVersion": "1"}]
+    span_base = {
+        "traceId": "t1", "spanId": "s1",
+        "name": "LLM_REQUEST",
+        "startTimeUnixNano": "1700000000000000000",
+        "endTimeUnixNano": "1700000001000000000",
+        "attributes": [{"key": "llm.model", "value": {"stringValue": "gpt-4"}}],
+        "events": [{"name": "input", "attributes": [{"key": "input", "value": {"stringValue": "hello"}}]}],
+    }
+    SCENARIO["otel"] = {"resourceSpans": [{"resource": {"attributes": []}, "scopeSpans": [{"spans": [span_base, span_base]}]}]}
 
-    asyncio.run(run_monitoring(m365_connection, since=None))
+    salesforce_connection.config = {
+        "domain": "test-org.my.salesforce.com",
+        "client_id": "client-123",
+        "client_secret": "secret-123",
+        "version": "62.0",
+        "session_ids": "sess1",
+    }
+    db.add(salesforce_connection)
+    db.commit()
+
+    _patch_http(monkeypatch, _handler)
+    asyncio.run(run_monitoring(salesforce_connection, since=None))
+
+    # Two duplicate spans with same traceId+spanId => one unique interaction
     inters = db.execute(select(AIInteraction)).scalars().all()
     assert len(inters) == 1
 
 
-def test_discovery_failure_records_failed_run(m365_connection, monkeypatch, db):
+def test_discovery_failure_records_failed_run(salesforce_connection, monkeypatch, db):
     def failing(request):
-        if "login.microsoftonline.com" in str(request.url):
+        url = str(request.url)
+        if "oauth2/token" in url:
             return httpx.Response(200, json={"access_token": "tok", "expires_in": 3600})
-        if "graph.microsoft.com" in str(request.url):
+        if "services/data" in url:
             return httpx.Response(500, json={"error": "boom"})
         return httpx.Response(404)
 
     _patch_http(monkeypatch, failing)
-    run_id = asyncio.run(run_discovery(m365_connection))
+    run_id = asyncio.run(run_discovery(salesforce_connection))
     run = db.get(Run, run_id)
     assert run.status.value == "Failed"
     assert run.error

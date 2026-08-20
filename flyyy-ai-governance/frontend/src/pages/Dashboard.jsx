@@ -1,7 +1,7 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api.js";
-import { Loading, ErrorBox, statusBadge, DemoBadge } from "../components/ui.jsx";
+import { Loading, ErrorBox, DemoBadge } from "../components/ui.jsx";
 
 export default function Dashboard() {
   const [stats, setStats] = useState(null);
@@ -27,12 +27,16 @@ export default function Dashboard() {
   ];
 
   return (
-    <div>
-      <h1>Governance Dashboard</h1>
-      <p className="muted">
-        Centralised view of AI capabilities embedded in your SaaS estate, who can
-        use them, and the interactions observed.
-      </p>
+    <div className="page">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Governance Dashboard</h1>
+          <p className="page-subtitle">
+            Centralised view of AI capabilities embedded in your SaaS estate,
+            who can use them, and the interactions observed.
+          </p>
+        </div>
+      </div>
 
       {stats.simulated_evidence && (
         <div className="sim-banner">
@@ -40,12 +44,12 @@ export default function Dashboard() {
           <span>
             The current inventory was produced by the <strong>demo connector</strong>.
             It is realistic but is <strong>not</strong> evidence from a real SaaS
-            tenant. Configure a Microsoft 365 connection to discover real data.
+            tenant. Configure a Salesforce connection to discover real data.
           </span>
         </div>
       )}
 
-      <div className="card-grid">
+      <div className="stat-grid">
         {cards.map((c) => (
           <Link to={c.to || "#"} key={c.label} className="stat-card">
             <div className="stat-value">{c.value}</div>
@@ -54,44 +58,48 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <h2>Monitoring Visibility</h2>
-      <p className="muted">
-        How much of each interaction the connected platforms actually expose.
-        This is the core transparency signal of the platform.
-      </p>
-      <div className="vis-grid">
-        <VisBar label="Request content" value={stats.visibility_summary.request_available} total={stats.total_interactions} />
-        <VisBar label="Response content" value={stats.visibility_summary.response_available} total={stats.total_interactions} />
-        <VisBar label="Model name" value={stats.visibility_summary.model_available} total={stats.total_interactions} />
-        <VisBar label="Token usage" value={stats.visibility_summary.usage_available} total={stats.total_interactions} />
-        <VisBar label="No content (metadata only)" value={stats.visibility_summary.no_content} total={stats.total_interactions} />
+      <div className="section">
+        <h2>Monitoring Visibility</h2>
+        <p className="muted">
+          How much of each interaction the connected platforms actually expose.
+          This is the core transparency signal of the platform.
+        </p>
+        <div className="vis-grid">
+          <VisBar label="Request content" value={stats.visibility_summary.request_available} total={stats.total_interactions} />
+          <VisBar label="Response content" value={stats.visibility_summary.response_available} total={stats.total_interactions} />
+          <VisBar label="Model name" value={stats.visibility_summary.model_available} total={stats.total_interactions} />
+          <VisBar label="Token usage" value={stats.visibility_summary.usage_available} total={stats.total_interactions} />
+          <VisBar label="No content (metadata only)" value={stats.visibility_summary.no_content} total={stats.total_interactions} />
+        </div>
       </div>
 
-      <h2>Recent Runs</h2>
-      <table className="table">
-        <thead>
-          <tr>
-            <th>Type</th>
-            <th>Status</th>
-            <th>Assets</th>
-            <th>Accesses</th>
-            <th>Interactions</th>
-            <th>Started</th>
-          </tr>
-        </thead>
-        <tbody>
-          {stats.recent_runs.map((r) => (
-            <tr key={r.id}>
-              <td>{r.run_type}</td>
-              <td>{statusBadge(r.status)}</td>
-              <td>{r.assets_found}</td>
-              <td>{r.accesses_found}</td>
-              <td>{r.interactions_found}</td>
-              <td>{new Date(r.started_at).toLocaleString()}</td>
+      <div className="section">
+        <h2>Recent Runs</h2>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Assets</th>
+              <th>Accesses</th>
+              <th>Interactions</th>
+              <th>Started</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {stats.recent_runs.map((r) => (
+              <tr key={r.id}>
+                <td>{r.run_type}</td>
+                <td>{r.status}</td>
+                <td>{r.assets_found}</td>
+                <td>{r.accesses_found}</td>
+                <td>{r.interactions_found}</td>
+                <td>{new Date(r.started_at).toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

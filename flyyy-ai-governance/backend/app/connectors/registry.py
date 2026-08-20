@@ -1,21 +1,20 @@
-"""
+﻿"""
 Connector registry.
 
-Maps a connector type string to its implementation and provides the
-``get_connector`` helper that the orchestrator uses. When a connector reports
-``is_configured() == False`` (e.g. Microsoft 365 without credentials), the
-orchestrator transparently falls back to the :class:`DemoConnector` so the
-application remains fully runnable.
+Maps a connector type string to its implementation and provides the ``get_connector``
+helper that the orchestrator uses. When a connector reports ``is_configured() ==
+False`` (e.g. Salesforce without credentials), the orchestrator transparently
+falls back to the :class:`DemoConnector` so the application remains fully runnable.
 """
 
 from __future__ import annotations
 
 from app.connectors.base import BaseConnector
 from app.connectors.demo import DemoConnector
-from app.connectors.microsoft365 import Microsoft365Connector
+from app.connectors.salesforce import SalesforceConnector
 
 _REGISTRY: dict[str, type[BaseConnector]] = {
-    "microsoft365": Microsoft365Connector,
+    "salesforce": SalesforceConnector,
     "demo": DemoConnector,
 }
 

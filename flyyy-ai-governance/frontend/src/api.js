@@ -1,7 +1,8 @@
-﻿// Thin API client: handles auth token storage, optional development auto-login,
+// Thin API client: handles auth token storage, optional development auto-login,
 // and JSON request/response. All calls are relative to the Vite dev proxy (/api).
 
 const TOKEN_KEY = "flyyy_token";
+const LOGOUT_FLAG_KEY = "flyyy_logged_out";
 
 // Development-only convenience. These are read from Vite env vars so they are
 // NEVER baked into a production bundle by default and can be disabled entirely.
@@ -15,10 +16,38 @@ export function getToken() {
 
 export function setToken(token) {
   localStorage.setItem(TOKEN_KEY, token);
+  localStorage.removeItem(LOGOUT_FLAG_KEY);
 }
 
 export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
+}
+
+// Decodes the JWT token to extract the username (sub field).
+export function getCurrentUser() {
+  const token = getToken();
+  if (!token) {
+    if (DEV_AUTOLOGIN && !localStorage.getItem(LOGOUT_FLAG_KEY)) {
+      return DEV_ADMIN_USER;
+    }
+    return null;
+  }
+  const parts = token.split(".");
+  if (parts.length < 2) return DEV_AUTOLOGIN && !localStorage.getItem(LOGOUT_FLAG_KEY) ? DEV_ADMIN_USER : null;
+  try {
+    const payload = JSON.parse(atob(parts[1]));
+    return payload.sub || (DEV_AUTOLOGIN && !localStorage.getItem(LOGOUT_FLAG_KEY) ? DEV_ADMIN_USER : null);
+  } catch {
+    return DEV_AUTOLOGIN && !localStorage.getItem(LOGOUT_FLAG_KEY) ? DEV_ADMIN_USER : null;
+  }
+}
+
+// Clears the auth token, sets a logout flag so ensureAuth() won't re-login,
+// and dispatches a logout event so App.jsx can redirect to login.
+export function logout() {
+  clearToken();
+  localStorage.setItem(LOGOUT_FLAG_KEY, "1");
+  window.dispatchEvent(new Event("auth:logout"));
 }
 
 export function devAutologinEnabled() {
@@ -47,9 +76,11 @@ export async function login(username, password) {
 }
 
 // Silent development login so the demo works out-of-the-box. Disabled when
-// VITE_AUTH_DEV_AUTOLOGIN=false or in a production build.
+// VITE_AUTH_DEV_AUTOLOGIN=false or in a production build. Respects the logout
+// flag so a user-initiated logout is not immediately undone.
 export async function ensureAuth() {
   if (getToken()) return;
+  if (localStorage.getItem(LOGOUT_FLAG_KEY)) return;
   if (!DEV_AUTOLOGIN) return;
   try {
     await login(DEV_ADMIN_USER, DEV_ADMIN_PASSWORD);

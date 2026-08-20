@@ -1,4 +1,4 @@
-﻿"""Pytest fixtures. Uses a stable relative SQLite file and Microsoft 365 env
+﻿"""Pytest fixtures. Uses a stable relative SQLite file and Salesforce env
 *before* importing the application, so the connector reports itself as
 configured and the service layer operates against an isolated schema.
 """
@@ -8,10 +8,12 @@ import os
 os.environ["DATABASE_URL"] = "sqlite:///./_test_flyyy.db"
 os.environ["SEED_DEMO_DATA"] = "false"
 os.environ["ENVIRONMENT"] = "development"
-os.environ["MS365_ENABLED"] = "true"
-os.environ["MS365_TENANT_ID"] = "tenant-123"
-os.environ["MS365_CLIENT_ID"] = "client-123"
-os.environ["MS365_CLIENT_SECRET"] = "secret-123"
+os.environ["SFDC_ENABLED"] = "true"
+os.environ["SFDC_DOMAIN"] = "test-org.my.salesforce.com"
+os.environ["SFDC_CLIENT_ID"] = "client-123"
+os.environ["SFDC_CLIENT_SECRET"] = "secret-123"
+os.environ["SFDC_API_VERSION"] = "62.0"
+os.environ["SFDC_OTEL_SESSION_IDS"] = ""
 
 import pytest  # noqa: E402
 from app.database import Base, SessionLocal, engine  # noqa: E402
@@ -32,7 +34,7 @@ def db():
     from sqlalchemy import text
     with engine.connect() as conn:
         for table in reversed(Base.metadata.sorted_tables):
-            conn.execute(text(f'DELETE FROM {table.name}'))
+            conn.execute(text(f"DELETE FROM {table.name}"))
         conn.commit()
     session = SessionLocal()
     try:
@@ -57,11 +59,11 @@ def demo_connection(db):
 
 
 @pytest.fixture
-def m365_connection(db):
+def salesforce_connection(db):
     conn = Connection(
-        name="M365",
-        platform="Microsoft 365",
-        connector_type="microsoft365",
+        name="Salesforce Test Org",
+        platform="Salesforce",
+        connector_type="salesforce",
         status="Not Configured",
         config={},
     )
@@ -69,3 +71,4 @@ def m365_connection(db):
     db.commit()
     db.refresh(conn)
     return conn
+

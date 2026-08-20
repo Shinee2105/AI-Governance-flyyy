@@ -51,7 +51,6 @@ class Settings:
 
     # ---- Security ----
     # Used for the simple admin login protecting mutation endpoints.
-    # REPLACE these placeholders before any real deployment.
     ADMIN_USERNAME: str = os.getenv("ADMIN_USERNAME", "admin")
     ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "CHANGE_ME_admin_2025")
     SECRET_KEY: str = os.getenv(
@@ -73,27 +72,26 @@ class Settings:
     SEED_DEMO_DATA: bool = _get_bool("SEED_DEMO_DATA", True)
 
     # In production, table creation is performed by Alembic migrations, not by
-    # the application startup. This flag is auto-derived: it is ONLY true when
-    # ENVIRONMENT is not "production".
+    # the application startup. Auto-create is ONLY true in development.
     CREATE_TABLES_ON_STARTUP: bool = os.getenv("ENVIRONMENT", "development") != "production"
 
-    # ---- Microsoft 365 connector (PLACEHOLDERS - fill after app registration) ----
-    # Create an Azure AD app registration with the required Graph / Management
-    # Activity API permissions, then provide these values.
-    MS365_TENANT_ID: str | None = os.getenv("MS365_TENANT_ID")
-    MS365_CLIENT_ID: str | None = os.getenv("MS365_CLIENT_ID")
-    MS365_CLIENT_SECRET: str | None = os.getenv("MS365_CLIENT_SECRET")
-    # Optional: separate credentials for the Office 365 Management Activity API.
-    MS365_MANAGEMENT_API_CLIENT_ID: str | None = os.getenv(
-        "MS365_MANAGEMENT_API_CLIENT_ID"
-    )
-    MS365_MANAGEMENT_API_CLIENT_SECRET: str | None = os.getenv(
-        "MS365_MANAGEMENT_API_CLIENT_SECRET"
-    )
-    # Whether to attempt a real connection. If False (or creds missing), the
-    # Microsoft 365 connector reports itself as NOT_CONFIGURED and the system
-    # transparently falls back to the demo connector for a runnable experience.
-    MS365_ENABLED: bool = _get_bool("MS365_ENABLED", False)
+    # ---- Salesforce connector (OPTIONAL - fill to discover REAL evidence) ----
+    # 1. Enable External Client Apps in your Salesforce org.
+    # 2. Create an External Client App (Connected App) with OAuth 2.0 enabled.
+    # 3. Use the Client Credentials grant type, assign scopes (api, etc.),
+    #    and set the Run-As integration user.
+    # 4. Provide the domain, client ID, and client secret below, then set
+    #    SFDC_ENABLED=true.
+    # 5. (Monitoring) For Agentforce session traces, obtain session IDs from the
+    #    Session Trace UI in Salesforce and set SFDC_OTEL_SESSION_IDS.
+    SFDC_ENABLED: bool = _get_bool("SFDC_ENABLED", False)
+    SFDC_DOMAIN: str | None = os.getenv("SFDC_DOMAIN")
+    SFDC_CLIENT_ID: str | None = os.getenv("SFDC_CLIENT_ID")
+    SFDC_CLIENT_SECRET: str | None = os.getenv("SFDC_CLIENT_SECRET")
+    SFDC_API_VERSION: str = os.getenv("SFDC_API_VERSION", "62.0")
+    # Comma-separated list of Agentforce session IDs for OTel trace retrieval.
+    # Obtain from the Salesforce Session Trace UI / Data Explorer.
+    SFDC_OTEL_SESSION_IDS: str | None = os.getenv("SFDC_OTEL_SESSION_IDS")
 
 
 @lru_cache

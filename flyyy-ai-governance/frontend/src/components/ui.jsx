@@ -1,8 +1,9 @@
-﻿import React from "react";
+import React from "react";
 
 // Status pill with colour coding.
-export function Badge({ kind = "neutral", children }) {
-  return <span className={`badge badge-${kind}`}>{children}</span>;
+export function Badge({ kind = "neutral", children, className = "" }) {
+  const classes = className ? `badge badge-${kind} ${className}` : `badge badge-${kind}`;
+  return <span className={classes}>{children}</span>;
 }
 
 // Maps a status string to a colour class.
@@ -19,10 +20,9 @@ export function statusBadge(status) {
   return <Badge kind={kind}>{status}</Badge>;
 }
 
-// Prominent marker for demonstration / simulated data so it is never mistaken
-// for real evidence from a SaaS tenant.
+// Prominent marker for demonstration / simulated data
 export function DemoBadge({ label = "SIMULATED" }) {
-  return <span className="badge badge-demo">⚠ {label}</span>;
+  return <span className="badge badge-demo">{label}</span>;
 }
 
 export function isSimulated(obj) {
@@ -44,5 +44,16 @@ export function Loading({ label = "Loading…" }) {
 
 export function ErrorBox({ error }) {
   if (!error) return null;
-  return <div className="error-box">⚠ {String(error.message || error)}</div>;
+  return <div className="error-box">{String(error.message || error)}</div>;
+}
+
+// Enhanced status indicator for visibility checks
+export function VisibilityIndicator({ available, label }) {
+  return (
+    <div className={`vis-indicator ${available ? "yes" : "no"}`}>
+      <span className={`dot ${available ? "dot-yes" : "dot-no"}`} />
+      <span className="vis-label">{label}</span>
+      <span className="vis-status">{available ? "Available" : "Not exposed"}</span>
+    </div>
+  );
 }

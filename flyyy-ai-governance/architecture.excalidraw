@@ -418,7 +418,7 @@
       "originalText": "Demo Connector"
     },
     {
-      "id": "MS_Graph_API9858",
+      "id": "Salesforce_REST_API9858",
       "type": "rectangle",
       "x": 740,
       "y": 280,
@@ -444,7 +444,7 @@
       "boundElements": [
         {
           "type": "text",
-          "id": "MS_Graph_API9858_t"
+          "id": "Salesforce_REST_API9858_t"
         }
       ],
       "updated": 1700000000000,
@@ -452,7 +452,7 @@
       "locked": false
     },
     {
-      "id": "MS_Graph_API9858_t",
+      "id": "Salesforce_REST_API9858_t",
       "type": "text",
       "x": 748,
       "y": 300.0,
@@ -477,17 +477,17 @@
       "updated": 1700000000000,
       "link": null,
       "locked": false,
-      "text": "MS Graph API",
+      "text": "Salesforce REST API",
       "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "center",
       "verticalAlign": "middle",
       "baseline": 14,
-      "containerId": "MS_Graph_API9858",
-      "originalText": "MS Graph API"
+      "containerId": "Salesforce_REST_API9858",
+      "originalText": "Salesforce REST API"
     },
     {
-      "id": "Mgmt_Activity_API4078",
+      "id": "Session_Trace_OTel_API4078",
       "type": "rectangle",
       "x": 740,
       "y": 370,
@@ -513,7 +513,7 @@
       "boundElements": [
         {
           "type": "text",
-          "id": "Mgmt_Activity_API4078_t"
+          "id": "Session_Trace_OTel_API4078_t"
         }
       ],
       "updated": 1700000000000,
@@ -521,7 +521,7 @@
       "locked": false
     },
     {
-      "id": "Mgmt_Activity_API4078_t",
+      "id": "Session_Trace_OTel_API4078_t",
       "type": "text",
       "x": 748,
       "y": 390.0,
@@ -546,14 +546,14 @@
       "updated": 1700000000000,
       "link": null,
       "locked": false,
-      "text": "Mgmt Activity API",
+      "text": "Session Trace OTel API",
       "fontSize": 14,
       "fontFamily": 1,
       "textAlign": "center",
       "verticalAlign": "middle",
       "baseline": 14,
-      "containerId": "Mgmt_Activity_API4078",
-      "originalText": "Mgmt Activity API"
+      "containerId": "Session_Trace_OTel_API4078",
+      "originalText": "Session Trace OTel API"
     },
     {
       "id": "PostgreSQL4374",

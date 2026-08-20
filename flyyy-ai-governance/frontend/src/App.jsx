@@ -1,5 +1,5 @@
-﻿import React, { useEffect, useState } from "react";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { ensureAuth, getToken, devAutologinEnabled } from "./api.js";
 import Layout from "./components/Layout.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
@@ -12,6 +12,7 @@ import Login from "./pages/Login.jsx";
 
 export default function App() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [state, setState] = useState("loading"); // loading | authed | login
 
   useEffect(() => {
@@ -23,15 +24,23 @@ export default function App() {
       }
       await ensureAuth();
       if (!cancelled) {
-        // If dev auto-login succeeded a token now exists; otherwise show login.
         setState(getToken() ? "authed" : "login");
       }
     }
     init();
+
+    // Listen for logout events to redirect to login
+    const handleLogout = () => {
+      setState("login");
+      navigate("/login", { replace: true });
+    };
+    window.addEventListener("auth:logout", handleLogout);
+
     return () => {
       cancelled = true;
+      window.removeEventListener("auth:logout", handleLogout);
     };
-  }, [location.pathname]);
+  }, [location.pathname, navigate]);
 
   if (state === "loading") return <div className="loading">Loading…</div>;
   if (state === "login") return <Login />;

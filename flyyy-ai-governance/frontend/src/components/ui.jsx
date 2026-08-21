@@ -1,12 +1,10 @@
 import React from "react";
 
-// Status pill with colour coding.
 export function Badge({ kind = "neutral", children, className = "" }) {
   const classes = className ? `badge badge-${kind} ${className}` : `badge badge-${kind}`;
   return <span className={classes}>{children}</span>;
 }
 
-// Maps a status string to a colour class.
 export function statusBadge(status) {
   if (!status) return <Badge>—</Badge>;
   const s = status.toLowerCase();
@@ -20,7 +18,6 @@ export function statusBadge(status) {
   return <Badge kind={kind}>{status}</Badge>;
 }
 
-// Prominent marker for demonstration / simulated data
 export function DemoBadge({ label = "SIMULATED" }) {
   return <span className="badge badge-demo">{label}</span>;
 }
@@ -29,7 +26,6 @@ export function isSimulated(obj) {
   return Boolean(obj && obj.simulated);
 }
 
-// Small dot indicating whether a piece of evidence is available.
 export function Avail({ value, label }) {
   return (
     <span className={`avail ${value ? "avail-yes" : "avail-no"}`}>
@@ -47,7 +43,6 @@ export function ErrorBox({ error }) {
   return <div className="error-box">{String(error.message || error)}</div>;
 }
 
-// Enhanced status indicator for visibility checks
 export function VisibilityIndicator({ available, label }) {
   return (
     <div className={`vis-indicator ${available ? "yes" : "no"}`}>

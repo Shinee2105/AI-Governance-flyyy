@@ -80,7 +80,6 @@ def test_salesforce_monitoring_dedupes_same_external_id(salesforce_connection, m
     _patch_http(monkeypatch, _handler)
     asyncio.run(run_monitoring(salesforce_connection, since=None))
 
-    # Two duplicate spans with same traceId+spanId => one unique interaction
     inters = db.execute(select(AIInteraction)).scalars().all()
     assert len(inters) == 1
 

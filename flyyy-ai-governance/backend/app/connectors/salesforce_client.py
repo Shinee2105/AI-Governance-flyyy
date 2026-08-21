@@ -1,16 +1,6 @@
 ﻿"""
-Salesforce API client helper.
-
-Provides:
-  * ECA OAuth 2.0 Client Credentials flow token acquisition with caching.
-  * Bounded, retried REST calls against the Salesforce REST API.
-  * Error classification for 429 (rate limit) and 5xx (transient) with
-    exponential backoff + jitter.
-
-Only APIs verified against official Salesforce documentation are used:
-  POST /services/oauth2/token  grant_type=client_credentials
-  GET  /services/data/v{ver}/query?q=...
-  GET  /services/data/v{ver}/einstein/audit/otel/{session-id}
+Salesforce API client. Handles OAuth client-credentials token caching,
+retried REST calls with backoff, and SOQL auto-pagination.
 """
 
 from __future__ import annotations
@@ -67,7 +57,6 @@ class SalesforceClient:
             resp.raise_for_status()
             payload = resp.json()
         self._token = payload["access_token"]
-        # Refresh 60s before real expiry to avoid edge failures.
         self._token_expires_at = time.time() + max(
             60.0, payload.get("expires_in", 3600) - 60
         )
@@ -96,10 +85,10 @@ class SalesforceClient:
         json_body: Any | None = None,
         raw: bool = False,
     ) -> Any:
-        """Perform an authenticated request with bounded retry/backoff.
+        """Authenticated request with bounded retry/backoff.
 
-        ``path`` is treated as relative to the REST base URL.  When ``raw`` is
-        True the caller supplies an absolute path (used for the OTel endpoint).
+        ``path`` is relative to the REST base URL. When ``raw`` is True the
+        caller supplies an absolute path (used for the OTel endpoint).
         """
         url = path if raw else f"{self.base_url}{path}"
         headers: dict[str, str] = {}
@@ -131,10 +120,7 @@ class SalesforceClient:
         raise last_exc  # type: ignore[misc]
 
     async def query(self, soql: str) -> list[dict]:
-        """Run a SOQL query and auto-paginate via nextRecordsUrl.
-
-        Returns the flattened list of records.  SOQL MAX is 2000 per page.
-        """
+        """Run a SOQL query and auto-paginate via nextRecordsUrl."""
         records: list[dict] = []
         next_url: str | None = None
         params: dict[str, Any] = {"q": soql}

@@ -13,7 +13,7 @@ import Login from "./pages/Login.jsx";
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [state, setState] = useState("loading"); // loading | authed | login
+  const [state, setState] = useState("loading");
 
   useEffect(() => {
     let cancelled = false;
@@ -29,7 +29,6 @@ export default function App() {
     }
     init();
 
-    // Listen for logout events to redirect to login
     const handleLogout = () => {
       setState("login");
       navigate("/login", { replace: true });

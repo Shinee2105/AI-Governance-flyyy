@@ -1,6 +1,5 @@
-﻿"""Pytest fixtures. Uses a stable relative SQLite file and Salesforce env
-*before* importing the application, so the connector reports itself as
-configured and the service layer operates against an isolated schema.
+﻿"""Pytest fixtures. Uses a stable SQLite file and sets Salesforce env vars
+before importing the application, so the connector reports as configured.
 """
 
 import os
@@ -26,11 +25,7 @@ from app.models import Connection  # noqa: E402
 
 @pytest.fixture
 def db():
-    # Ensure the schema exists for every test (idempotent).
     Base.metadata.create_all(bind=engine)
-    # Clear all rows from every table so tests are isolated (the SQLite file
-    # persists across the session). Tables are truncated in reverse dependency
-    # order to respect foreign-key constraints under SQLite.
     from sqlalchemy import text
     with engine.connect() as conn:
         for table in reversed(Base.metadata.sorted_tables):

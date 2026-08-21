@@ -1,17 +1,7 @@
 ﻿"""
-Discovery orchestration service.
-
-Runs a connector's ``discover()`` against a :class:`Connection`, persists the
-resulting AI assets and their access evidence, and records a :class:`Run` audit
-entry. Uses *upsert* semantics keyed on the asset identity so repeated
-discoveries keep a stable inventory while refreshing evidence.
-
-The network/IO part (``connector.discover()``) runs in the async event loop; the
-blocking database persistence runs in a worker thread via
-``asyncio.to_thread`` so a long discovery does not block the event loop. The
-persistence function opens its own SQLAlchemy session (sessions are not
-thread-safe) and returns the resulting ``Run`` id. If the provider call fails, a
-FAILED run is recorded rather than crashing the request.
+Discovery service. Runs connector.discover() and persists AI assets and
+access evidence. Uses asyncio.to_thread for DB writes so the event loop
+isn't blocked. Provider failures are recorded as FAILED runs.
 """
 
 from __future__ import annotations
@@ -45,23 +35,29 @@ async def run_discovery(connection: Connection) -> str:
     )
     try:
         result = await connector.discover()
-    except Exception as exc:  # noqa: BLE001 - provider failure -> FAILED run
+    except Exception as exc:
         return await asyncio.to_thread(
             _persist_failed, connection.id, "discovery", _safe_err(exc)
         )
-    out = await asyncio.to_thread(
-        _persist_discovery, connection.id, result, using_fallback
-    )
-    return out["run_id"]
+    try:
+        out = await asyncio.to_thread(
+            _persist_discovery, connection.id, result, using_fallback
+        )
+        return out["run_id"]
+    except Exception as exc:
+        return await asyncio.to_thread(
+            _persist_failed, connection.id, "discovery", _safe_err(exc)
+        )
 
 
 def _persist_discovery(connection_id: str, result, using_fallback: bool) -> dict:
     db: Session = SessionLocal()
     run = Run(connection_id=connection_id, run_type="discovery")
-    db.add(run)
-    db.commit()
-    db.refresh(run)
     try:
+        db.add(run)
+        db.commit()
+        db.refresh(run)
+
         connection = db.get(Connection, connection_id)
         for asset in result.assets:
             db_asset = _upsert_asset(db, connection, asset)
@@ -97,18 +93,21 @@ def _persist_discovery(connection_id: str, result, using_fallback: bool) -> dict
             "notes": result.notes,
         }
         db.commit()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         db.rollback()
         run.status = RunStatus.FAILED
         run.error = _safe_err(exc)
+        db.add(run)
+        db.commit()
         conn = db.get(Connection, connection_id)
         if conn:
             conn.status = "Error"
-        db.commit()
+            db.commit()
     finally:
         run.finished_at = datetime.now(timezone.utc)
         db.commit()
         db.refresh(run)
+        db.close()
     return {"run_id": run.id, "status": run.status.value, "summary": run.summary}
 
 

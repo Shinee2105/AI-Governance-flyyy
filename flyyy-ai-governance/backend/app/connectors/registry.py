@@ -1,10 +1,7 @@
 ﻿"""
-Connector registry.
-
-Maps a connector type string to its implementation and provides the ``get_connector``
-helper that the orchestrator uses. When a connector reports ``is_configured() ==
-False`` (e.g. Salesforce without credentials), the orchestrator transparently
-falls back to the :class:`DemoConnector` so the application remains fully runnable.
+Connector registry. Maps a connector type string to its implementation and
+provides ``effective_connector()``, which falls back to the demo connector
+when the requested connector is not configured.
 """
 
 from __future__ import annotations
@@ -33,8 +30,8 @@ def effective_connector(
 ) -> tuple[BaseConnector, bool]:
     """Return (connector, using_fallback).
 
-    If the requested connector is not configured, fall back to the demo
-    connector and flag it so callers can label results accordingly.
+    Falls back to the demo connector if the requested connector is not
+    configured, and flags it so callers can label results accordingly.
     """
     requested = build_connector(connector_type, config)
     if requested.is_configured():

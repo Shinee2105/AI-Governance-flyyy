@@ -1,9 +1,4 @@
-﻿"""Tests for the Salesforce connector using a mocked httpx transport.
-
-These validate real behaviour (BotDefinition discovery, user enumeration,
-OTel trace parsing, idempotent ids, session-trace error handling) without
-contacting Salesforce. Only the HTTP layer is substituted.
-"""
+﻿"""Tests for the Salesforce connector using a mocked httpx transport."""
 
 import asyncio
 import httpx
@@ -140,7 +135,7 @@ def test_otel_trace_parsing(monkeypatch):
     _patch_http(monkeypatch, _token_handler)
 
     res = asyncio.run(c.monitor())
-    assert len(res.interactions) == 1  # two spans with same traceId merged into one
+    assert len(res.interactions) == 1
     inter = res.interactions[0]
     assert inter.model == "gpt-4"
     assert inter.model_available is True

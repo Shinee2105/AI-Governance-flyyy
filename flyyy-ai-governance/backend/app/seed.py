@@ -1,15 +1,7 @@
 ﻿"""
-Application bootstrap.
-
-On startup this module:
-  * creates database tables in development (production should use Alembic
-    migrations - see README),
-  * ensures a Demo connection and a placeholder Salesforce connection exist,
-  * if demo seeding is enabled and the inventory is empty, runs an initial
-    discovery + monitoring pass so the UI is populated immediately.
-
-In production you would replace the auto-create with Alembic migrations and
-configure a real Salesforce connector via environment variables.
+Application bootstrap. Creates database tables in development, ensures the
+Demo connection exists, and optionally runs an initial discovery + monitoring
+pass so the UI is populated immediately.
 """
 
 from __future__ import annotations
@@ -39,8 +31,6 @@ def _ensure_connections(db: Session) -> Connection:
         db.commit()
         db.refresh(demo)
 
-    # Placeholder for a real Salesforce org - clearly NOT configured until
-    # credentials are supplied via environment variables.
     sf = db.execute(
         select(Connection).where(Connection.connector_type == "salesforce")
     ).scalars().first()
@@ -68,6 +58,5 @@ async def bootstrap(db: Session, seed_demo: bool) -> None:
     if has_assets:
         return
 
-    # Run an initial discovery + monitoring pass against the demo connector.
     await run_discovery(demo)
     await run_monitoring(demo, since=None)

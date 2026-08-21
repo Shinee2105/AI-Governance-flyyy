@@ -1,5 +1,5 @@
 ﻿"""
-Pydantic schemas (request/response models) for the API layer.
+Pydantic request/response models for the API layer.
 """
 
 from __future__ import annotations
@@ -9,10 +9,6 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
-# ---------------------------------------------------------------------------
-# Connection
-# ---------------------------------------------------------------------------
 
 class ConnectionBase(BaseModel):
     name: str
@@ -36,10 +32,6 @@ class ConnectionOut(ConnectionBase):
     last_run_at: datetime | None = None
     created_at: datetime
 
-
-# ---------------------------------------------------------------------------
-# AI Asset
-# ---------------------------------------------------------------------------
 
 class AIAssetAccessOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -78,8 +70,6 @@ class AIAssetOut(BaseModel):
     last_seen_at: datetime | None = None
     access_count: int = 0
     interaction_count: int = 0
-    # True when this asset came from the demonstration connector (not a real
-    # SaaS tenant). The UI surfaces this prominently.
     simulated: bool = False
 
 
@@ -93,10 +83,6 @@ class AIAssetReviewUpdate(BaseModel):
     monitoring_status: str | None = None
     purpose: str | None = None
 
-
-# ---------------------------------------------------------------------------
-# AI Interaction
-# ---------------------------------------------------------------------------
 
 class AIInteractionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -123,10 +109,6 @@ class AIInteractionOut(BaseModel):
     simulated: bool = False
 
 
-# ---------------------------------------------------------------------------
-# Run
-# ---------------------------------------------------------------------------
-
 class RunOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
@@ -142,10 +124,6 @@ class RunOut(BaseModel):
     error: str | None = None
 
 
-# ---------------------------------------------------------------------------
-# Dashboard / stats
-# ---------------------------------------------------------------------------
-
 class DashboardStats(BaseModel):
     total_assets: int
     enabled_assets: int
@@ -159,10 +137,6 @@ class DashboardStats(BaseModel):
     visibility_summary: dict[str, int] = Field(default_factory=dict)
 
 
-# ---------------------------------------------------------------------------
-# Auth
-# ---------------------------------------------------------------------------
-
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -172,10 +146,6 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
-
-# ---------------------------------------------------------------------------
-# Generic
-# ---------------------------------------------------------------------------
 
 class Message(BaseModel):
     message: str

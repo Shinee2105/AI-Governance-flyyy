@@ -1,19 +1,7 @@
 ﻿"""
-Monitoring orchestration service.
-
-Runs a connector's ``monitor()`` to capture AI interactions, links each
-interaction to the discovered asset it belongs to (by platform + capability),
-and records a :class:`Run` audit entry.
-
-Idempotency: each observed interaction carries a stable ``external_event_id``
-(the provider's own id when available, otherwise a deterministic fingerprint).
-Repeated monitoring runs skip events already stored for the same connection,
-so the same audit record is never persisted twice.
-
-The network/IO part (``connector.monitor()``) runs in the async event loop; the
-blocking database persistence runs in a worker thread via
-``asyncio.to_thread`` using its own session. Provider failures are recorded as a
-FAILED run rather than crashing the request.
+Monitoring service. Runs connector.monitor() and persists AI interactions
+linked to discovered assets. Uses asyncio.to_thread for DB writes. Provider
+failures are recorded as FAILED runs.
 """
 
 from __future__ import annotations
@@ -43,29 +31,32 @@ async def run_monitoring(connection: Connection, since=None) -> str:
     )
     try:
         result = await connector.monitor(since)
-    except Exception as exc:  # noqa: BLE001 - provider failure -> FAILED run
+    except Exception as exc:
         return await asyncio.to_thread(
             _persist_failed, connection.id, "monitoring", _safe_err(exc)
         )
-    out = await asyncio.to_thread(
-        _persist_monitoring, connection.id, result, using_fallback
-    )
-    return out["run_id"]
+    try:
+        out = await asyncio.to_thread(
+            _persist_monitoring, connection.id, result, using_fallback
+        )
+        return out["run_id"]
+    except Exception as exc:
+        return await asyncio.to_thread(
+            _persist_failed, connection.id, "monitoring", _safe_err(exc)
+        )
 
 
 def _persist_monitoring(connection_id: str, result, using_fallback: bool) -> dict:
     db: Session = SessionLocal()
     run = Run(connection_id=connection_id, run_type="monitoring")
-    db.add(run)
-    db.commit()
-    db.refresh(run)
     try:
+        db.add(run)
+        db.commit()
+        db.refresh(run)
+
         assets = db.execute(select(AIAsset)).scalars().all()
         asset_index = {(a.saas_platform, a.ai_capability): a.id for a in assets}
 
-        # Track external_event_ids already seen in this batch (in addition to
-        # the DB) to prevent UNIQUE-constraint violations on duplicate records
-        # within the same monitoring run that have not been flushed yet.
         seen_ext_ids = set()
 
         for inter in result.interactions:
@@ -118,8 +109,6 @@ def _persist_monitoring(connection_id: str, result, using_fallback: bool) -> dic
 
         diag = (result.metadata or {}).get("diagnostics")
         had_errors = bool(diag and diag.get("errors"))
-        # Zero events + provider errors => PARTIAL. Zero events + no errors =>
-        # SUCCESSFUL window with no currently available events (NOT "no usage").
         if run.interactions_found == 0 and had_errors:
             run.status = RunStatus.PARTIAL
         else:
@@ -131,15 +120,17 @@ def _persist_monitoring(connection_id: str, result, using_fallback: bool) -> dic
             "diagnostics": diag,
         }
         db.commit()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         db.rollback()
         run.status = RunStatus.FAILED
         run.error = _safe_err(exc)
+        db.add(run)
         db.commit()
     finally:
         run.finished_at = datetime.now(timezone.utc)
         db.commit()
         db.refresh(run)
+        db.close()
     return {"run_id": run.id, "status": run.status.value, "summary": run.summary}
 
 

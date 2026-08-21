@@ -1,8 +1,5 @@
 ﻿"""
-Flyyy.ai - SaaS AI Discovery & Monitoring Platform.
-
-FastAPI entrypoint. Serves the REST API under ``/api/v1`` and (in production
-builds) can serve the bundled React frontend.
+Flyyy.ai FastAPI entrypoint. Serves the REST API under /api/v1.
 """
 
 from __future__ import annotations
@@ -20,9 +17,6 @@ from app.seed import bootstrap
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # In development we auto-create tables for convenience. In production the
-    # authoritative schema is managed by Alembic migrations (see README), so we
-    # deliberately do NOT mutate the schema on startup there.
     if settings.CREATE_TABLES_ON_STARTUP:
         Base.metadata.create_all(bind=engine)
     db = SessionLocal()
@@ -38,13 +32,12 @@ app = FastAPI(
     description=(
         "Discover AI capabilities embedded in SaaS applications, identify who "
         "can use them, and monitor the AI interactions taking place through "
-        "them. See README for architecture and research notes."
+        "them."
     ),
     version="1.0.0",
     lifespan=lifespan,
 )
 
-# CORS is environment-driven. We never use a wildcard together with credentials.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,

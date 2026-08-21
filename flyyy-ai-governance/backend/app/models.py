@@ -1,10 +1,6 @@
 ﻿"""
-SQLAlchemy ORM models for the SaaS AI governance platform.
-
-The schema is intentionally explicit about *visibility*: every monitoring
-field that a SaaS platform may withhold (prompt/response content, model,
-token usage) carries a companion ``*_available`` boolean so the UI can
-honestly distinguish observed evidence from platform limitations.
+SQLAlchemy ORM models. Every monitoring field carries a *_available boolean
+so the UI can distinguish observed evidence from platform limitations.
 """
 
 from __future__ import annotations
@@ -39,10 +35,6 @@ def _uuid() -> str:
     return str(uuid.uuid4())
 
 
-# ---------------------------------------------------------------------------
-# Enumerations
-# ---------------------------------------------------------------------------
-
 class AssetStatus(str, PyEnum):
     DISCOVERED_PENDING_REVIEW = "Discovered / Pending Review"
     ENABLED = "Enabled"
@@ -66,14 +58,7 @@ class MonitoringStatus(str, PyEnum):
 
 
 class CapabilityStatus(str, PyEnum):
-    """Precise enablement state derived from *evidence*, not assumption.
-
-    We deliberately separate "LICENSED" (a license/SKU is assigned, proving the
-    capability is provisioned for the tenant/users) from "ENABLED" (an explicit
-    enablement signal we can observe). Microsoft 365 Copilot is enabled
-    per-user via license assignment, so we record LICENSED rather than claiming
-    a separate, unverified "ENABLED" state.
-    """
+    """Precise enablement state derived from evidence."""
 
     LICENSED = "Licensed"
     ENABLED = "Enabled"
@@ -83,7 +68,7 @@ class CapabilityStatus(str, PyEnum):
 
 
 class AccessType(str, PyEnum):
-    """How a principal's access to an AI capability was established."""
+    """How a principal's access was established."""
 
     DIRECT_LICENSE = "Direct (license assigned to user)"
     GROUP_LICENSE = "Group (license assigned to group)"
@@ -110,12 +95,8 @@ class RunStatus(str, PyEnum):
     RUNNING = "Running"
 
 
-# ---------------------------------------------------------------------------
-# Models
-# ---------------------------------------------------------------------------
-
 class Connection(Base):
-    """A configured SaaS environment / connector instance."""
+    """A configured SaaS environment."""
 
     __tablename__ = "connections"
 
@@ -126,7 +107,6 @@ class Connection(Base):
     status: Mapped[ConnectorStatus] = mapped_column(
         Enum(ConnectorStatus), default=ConnectorStatus.NOT_CONFIGURED
     )
-    # Non-secret configuration metadata only (tenant name, org id, etc.).
     config: Mapped[dict] = mapped_column(JSON, default=dict)
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
@@ -138,7 +118,7 @@ class Connection(Base):
 
 
 class AIAsset(Base):
-    """An AI capability discovered inside a SaaS environment (the inventory)."""
+    """An AI capability discovered inside a SaaS environment."""
 
     __tablename__ = "ai_assets"
     __table_args__ = (Index("ix_ai_assets_connection", "connection_id"),)
@@ -147,14 +127,12 @@ class AIAsset(Base):
     connection_id: Mapped[str | None] = mapped_column(
         ForeignKey("connections.id", ondelete="SET NULL")
     )
-    # --- Core inventory fields (spec: AI Asset Inventory) ---
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     asset_type: Mapped[str] = mapped_column(String(128), nullable=False)
     provider: Mapped[str] = mapped_column(String(128), nullable=False)
     saas_platform: Mapped[str] = mapped_column(String(128), nullable=False)
     ai_capability: Mapped[str] = mapped_column(String(255), nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, default=False)
-    # Precise enablement evidence (LICENSED vs ENABLED vs UNKNOWN).
     capability_status: Mapped[CapabilityStatus] = mapped_column(
         Enum(CapabilityStatus), default=CapabilityStatus.UNKNOWN
     )
@@ -170,9 +148,7 @@ class AIAsset(Base):
     review_status: Mapped[ReviewStatus] = mapped_column(
         Enum(ReviewStatus), default=ReviewStatus.PENDING
     )
-    # Tenant / workspace identifier the asset belongs to.
     tenant_id: Mapped[str | None] = mapped_column(String(255))
-    # Any additional evidence / metadata gathered during discovery.
     evidence: Mapped[dict] = mapped_column("evidence", JSON, default=dict)
     discovered_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow
@@ -197,7 +173,7 @@ class AIAsset(Base):
 
 
 class AIAssetAccess(Base):
-    """A user or group that has access to a discovered AI asset (evidence)."""
+    """A user or group with access to a discovered AI asset."""
 
     __tablename__ = "ai_asset_access"
     __table_args__ = (Index("ix_ai_asset_access_asset", "asset_id"),)
@@ -211,7 +187,6 @@ class AIAssetAccess(Base):
     principal_name: Mapped[str | None] = mapped_column(String(255))
     display_name: Mapped[str | None] = mapped_column(String(255))
     email: Mapped[str | None] = mapped_column(String(255))
-    # How access was established (direct license vs group license vs unknown).
     access_type: Mapped[AccessType] = mapped_column(
         Enum(AccessType), default=AccessType.UNKNOWN
     )
@@ -226,7 +201,7 @@ class AIAssetAccess(Base):
 
 
 class AIInteraction(Base):
-    """A single observed AI interaction (monitoring component)."""
+    """A single observed AI interaction."""
 
     __tablename__ = "ai_interactions"
     __table_args__ = (
@@ -248,11 +223,7 @@ class AIInteraction(Base):
     connection_id: Mapped[str | None] = mapped_column(
         ForeignKey("connections.id", ondelete="SET NULL")
     )
-    # Stable external identifier from the provider (if available) used for
-    # idempotent monitoring. Nullable because some sources lack a stable id; in
-    # that case a deterministic fingerprint is used instead.
     external_event_id: Mapped[str | None] = mapped_column(String(255))
-    # --- Identity / context ---
     user_email: Mapped[str | None] = mapped_column(String(255))
     user_display_name: Mapped[str | None] = mapped_column(String(255))
     principal_type: Mapped[PrincipalType | None] = mapped_column(
@@ -260,22 +231,17 @@ class AIInteraction(Base):
     )
     saas_application: Mapped[str | None] = mapped_column(String(128))
     ai_feature: Mapped[str | None] = mapped_column(String(128))
-    # --- Model (often NOT exposed by SaaS platforms) ---
     model: Mapped[str | None] = mapped_column(String(128))
     model_available: Mapped[bool] = mapped_column(Boolean, default=False)
-    # --- Timing ---
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow
     )
-    # --- Request / response content (often NOT exposed) ---
     request_info: Mapped[str | None] = mapped_column(Text)
     request_available: Mapped[bool] = mapped_column(Boolean, default=False)
     response_info: Mapped[str | None] = mapped_column(Text)
     response_available: Mapped[bool] = mapped_column(Boolean, default=False)
-    # --- Usage / tokens (sometimes exposed) ---
     token_usage: Mapped[dict | None] = mapped_column(JSON)
     usage_available: Mapped[bool] = mapped_column(Boolean, default=False)
-    # --- Provenance & honesty ---
     source: Mapped[str | None] = mapped_column(String(255))
     visibility_note: Mapped[str | None] = mapped_column(Text)
     raw_event: Mapped[dict | None] = mapped_column(JSON)
@@ -296,7 +262,7 @@ class Run(Base):
     connection_id: Mapped[str | None] = mapped_column(
         ForeignKey("connections.id", ondelete="SET NULL")
     )
-    run_type: Mapped[str] = mapped_column(String(32))  # "discovery" | "monitoring"
+    run_type: Mapped[str] = mapped_column(String(32))
     status: Mapped[RunStatus] = mapped_column(
         Enum(RunStatus), default=RunStatus.RUNNING
     )
@@ -315,6 +281,5 @@ class Run(Base):
     connection: Mapped["Connection | None"] = relationship(back_populates="runs")
 
 
-# Convenience aggregate counts used by the dashboard.
 def _count(session, model) -> int:
     return int(session.query(func.count(model.id)).scalar() or 0)

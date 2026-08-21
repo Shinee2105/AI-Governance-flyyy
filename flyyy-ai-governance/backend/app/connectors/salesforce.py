@@ -1,6 +1,7 @@
 ﻿
 """
-Salesforce Agentforce connector.
+Salesforce Agentforce connector. Discovers agents via SOQL and captures
+session traces via the OTel API.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ from app.models import AccessType, CapabilityStatus, PrincipalType
 
 MAX_USERS = 500
 MAX_CONCURRENT_SESSIONS = 5
+
 
 class SalesforceConnector(BaseConnector):
     platform = "Salesforce"
@@ -72,14 +74,11 @@ class SalesforceConnector(BaseConnector):
         bot_soql = (
             "SELECT Id, MasterLabel, DeveloperName, BotUserId, Type, AgentType FROM BotDefinition"
         )
-        # Let unexpected errors propagate so the service layer can record a
-        # FAILED run; only genuine "not found" results are handled gracefully.
         bots = await client.query(bot_soql)
 
         if not bots:
             notes.append(
-                "No Agentforce agents found in this org. Agentforce may not be "
-                "enabled."
+                "No Agentforce agents found. Agentforce may not be enabled."
             )
             result.notes = notes
             return result
@@ -92,9 +91,7 @@ class SalesforceConnector(BaseConnector):
         try:
             user_list = await client.query(user_soql)
         except Exception as exc:
-            notes.append(
-                f"User enumeration failed: {exc}. Agent discovery still reported."
-            )
+            notes.append(f"User enumeration failed: {exc}. Agent discovery still reported.")
 
         agent_names = [
             b.get("MasterLabel") or b.get("DeveloperName") or b.get("Id")
@@ -110,13 +107,10 @@ class SalesforceConnector(BaseConnector):
             capability_status=CapabilityStatus.ENABLED.value,
             purpose=(
                 "Salesforce Agentforce is Salesforce native generative AI "
-                "platform for building and managing autonomous AI agents "
-                "powered by Einstein GPT."
+                "platform for building and managing autonomous AI agents."
             ),
             accessible_resources=agent_names,
-            discovery_source=(
-                "Salesforce REST API -- SOQL on BotDefinition and User"
-            ),
+            discovery_source="Salesforce REST API -- SOQL on BotDefinition and User",
             monitoring_status="Limited Visibility",
             metadata={
                 "agent_count": len(bots),
@@ -156,19 +150,15 @@ class SalesforceConnector(BaseConnector):
         sessions = self._get_session_ids()
         if sessions:
             notes.append(
-                "Agentforce session traces queryable via OTel API for "
-                f"{len(sessions)} configured session ID(s)."
+                f"Agentforce session traces queryable via OTel API for {len(sessions)} session(s)."
             )
         else:
             notes.append(
-                "No session IDs configured (SFDC_OTEL_SESSION_IDS). "
-                "Session-trace monitoring requires session IDs from the "
-                "Session Trace UI."
+                "No session IDs configured. Session-trace monitoring requires session IDs from the Session Trace UI."
             )
 
         notes.append(
-            f"Discovered {len(bots)} Agentforce agent(s) and "
-            f"{len(accesses)} active user(s) in {cfg['domain']}."
+            f"Discovered {len(bots)} agent(s) and {len(accesses)} user(s) in {cfg['domain']}."
         )
         result.notes = notes
         return result
@@ -214,7 +204,7 @@ class SalesforceConnector(BaseConnector):
             async with sem:
                 try:
                     url = (
-                        f"https://{cfg["domain"]}/services/data/v{version}/einstein/audit/otel/{sid}"
+                        f"https://{cfg['domain']}/services/data/v{version}/einstein/audit/otel/{sid}"
                     )
                     try:
                         otel_data = await client.request("GET", url, raw=True)
@@ -223,10 +213,7 @@ class SalesforceConnector(BaseConnector):
                         if "404" in exc_msg or "Not Found" in exc_msg:
                             diag["sessions_failed"] += 1
                             diag["errors"].append(
-                                f"session {sid}: OTel API not available in this org "
-                                f"(Session Trace / Einstein Audit not enabled). "
-                                f"This requires a production or Sandbox org with "
-                                f"Session Tracing enabled."
+                                f"session {sid}: OTel API not available (Session Trace not enabled)."
                             )
                             return []
                         raise
@@ -253,9 +240,7 @@ class SalesforceConnector(BaseConnector):
             notes.append("All session-trace fetches failed. See diagnostics.")
         else:
             notes.append(
-                f"Retrieved traces for {diag['sessions_succeeded']} session(s). "
-                "OTel traces expose model, request/response, and token "
-                "usage where the platform provides them."
+                f"Retrieved traces for {diag['sessions_succeeded']} session(s)."
             )
         result.notes = notes
         result.metadata = {"diagnostics": diag}
@@ -286,16 +271,8 @@ class SalesforceConnector(BaseConnector):
         )
 
 
-# ---------------------------------------------------------------------------
-# OTLP JSON parsing helpers
-# ---------------------------------------------------------------------------
-
-
 def _parse_otel_sessions(otel_data, session_id, notes):
-    """Parse an OTLP JSON payload into ObservedInteraction records.
-
-    Spans sharing the same traceId are merged into a single interaction.
-    """
+    """Parse OTLP JSON into ObservedInteraction records. Spans with the same traceId are merged."""
     interactions = []
     if not isinstance(otel_data, dict):
         return interactions
@@ -339,6 +316,7 @@ def _parse_otel_sessions(otel_data, session_id, notes):
                 interactions.append(merged)
     return interactions
 
+
 def _parse_span(span, resource_attrs, session_id):
     """Parse a single OTLP span into an ObservedInteraction if LLM-related."""
     name = span.get("name", "")
@@ -362,15 +340,17 @@ def _parse_span(span, resource_attrs, session_id):
         ev_name = (evt.get("name") or "").lower()
         ev_attrs = _attrs_to_dict(evt.get("attributes", []))
         if "request" in ev_name or "input" in ev_name or "prompt" in ev_name:
-            request_info = _pick(
-                ev_attrs, ["input", "prompt", "request", "message", "content"]
-            ) or _pick(span_attrs, ["input", "prompt", "request", "message", "content"])
+            request_info = (
+                _pick(ev_attrs, ["input", "prompt", "request", "message", "content"])
+                or _pick(span_attrs, ["input", "prompt", "request", "message", "content"])
+            )
             if request_info:
                 request_available = True
         if "response" in ev_name or "output" in ev_name or "completion" in ev_name:
-            response_info = _pick(
-                ev_attrs, ["output", "response", "completion", "message", "content"]
-            ) or _pick(span_attrs, ["output", "response", "completion", "message", "content"])
+            response_info = (
+                _pick(ev_attrs, ["output", "response", "completion", "message", "content"])
+                or _pick(span_attrs, ["output", "response", "completion", "message", "content"])
+            )
             if response_info:
                 response_available = True
         tokens = {}
@@ -442,6 +422,7 @@ def _parse_span(span, resource_attrs, session_id):
             "ai_capability": "Agentforce",
         },
     )
+
 
 def _attrs_to_dict(attrs):
     """Convert OTLP key-value attribute list to a plain dict."""

@@ -43,11 +43,9 @@ def dashboard(db: Session = Depends(get_db)):
     )
     connections = db.execute(select(func.count(Connection.id))).scalar() or 0
 
-    # Whether any inventory is demonstration/simulated data.
     assets = db.execute(select(AIAsset)).scalars().all()
     simulated_evidence = any((a.evidence or {}).get("simulated") for a in assets)
 
-    # Visibility summary: how many interactions expose each signal.
     visibility_summary = {
         "request_available": db.execute(
             select(func.count(AIInteraction.id)).where(

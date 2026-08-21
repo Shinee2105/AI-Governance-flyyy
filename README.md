@@ -38,6 +38,38 @@ This project implements a complete discovery-to-monitoring workflow with a plugg
 3. `MonitoringService` invokes `connector.monitor()` — captures interaction data, inserts `AIInteraction` records linked to assets, and records a `Run`.
 4. The React SPA consumes aggregated stats, the asset inventory, and the interaction log.
 
+## Screenshots
+
+The following screenshots demonstrate the key views of the Flyyy.ai platform.
+
+### Dashboard
+
+![Dashboard Overview](DASHBOARD.png)
+
+The dashboard provides an at-a-glance view of all AI assets, access grants, and monitoring interactions across connected SaaS environments. It shows aggregate statistics, visibility breakdowns, and recent run history.
+
+![Dashboard Details](DASHBOARD%202.png)
+
+A closer look at the dashboard showing stat cards, visibility bars indicating what the platform exposes versus withholds, and the recent runs table.
+
+### Connectors
+
+![Connectors](CONNECTORS.png)
+
+The Connectors page lists all configured SaaS connections (e.g., Salesforce, Demo). Each card shows the connector type, platform, status, and live/setup badge. Expanding a card reveals evidence sections and action buttons to trigger discovery or monitoring runs.
+
+### Salesforce Evidence
+
+![Salesforce Evidence](SALESFORCE.png)
+
+When a Salesforce connection is configured, the expanded connector card shows discovery and monitoring evidence retrieved from real Salesforce APIs. This includes discovered AI assets, access grants, and interaction data with visibility notes explaining what the platform exposes.
+
+### AI Assets
+
+![AI Assets](ai%20ASSETS.png)
+
+The Assets page displays the full inventory of discovered AI capabilities across all connections. Each row shows the platform, capability name, status, and monitoring details. Users can filter, review, and manage assets from this view.
+
 ## Visibility Modelling
 
 SaaS audit APIs routinely withhold model names, request/response content, or token usage. Rather than silently returning empty strings, every monitoring field carries a companion boolean:
@@ -223,6 +255,3 @@ npm run build
 | Auth | Signed JWT bearer tokens |
 | Deployment | Uvicorn / Gunicorn |
 
-## License
-
-This project is provided as-is for governance and discovery purposes.
